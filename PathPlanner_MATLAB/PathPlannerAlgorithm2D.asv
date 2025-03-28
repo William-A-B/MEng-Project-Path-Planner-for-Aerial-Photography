@@ -76,8 +76,8 @@ for i = 1:(num_squares+1)
     
     [departure_dir, arrival_dir] = calculate_directions(start_coord, closest_corner_coord);
     
-    start_pose = [start_coord, 0, prev_arrival_dir];
-    goal_pose = [closest_corner_coord, 0, arrival_dir];
+    start_pose = [start_coord, i, prev_arrival_dir];
+    goal_pose = [closest_corner_coord, i, arrival_dir];
     prev_arrival_dir = arrival_dir;
     % Dubins Path
     [pathSegObj, pathCosts] = connect(connectionObj, start_pose, goal_pose);
