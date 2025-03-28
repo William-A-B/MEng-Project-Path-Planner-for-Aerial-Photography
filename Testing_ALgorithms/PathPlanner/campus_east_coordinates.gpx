@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<gpx version="1.1" creator="outdooractive - http://www.outdooractive.com" xmlns="http://www.topografix.com/GPX/1/1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd" xmlns:oa="http://www.outdooractive.com/GPX/Extensions/1">
+  <metadata>
+    <name>Drafted on 2025-03-17</name>
+    <author>
+      <name>Fiver Valley - Community</name>
+    </author>
+    <link href="https://www.outdooractive.com/r/311614206"/>
+    <time>2025-03-17T12:31:29.242Z</time>
+    <extensions>
+      <oa:oaCategory>hikingTourTrail</oa:oaCategory>
+    </extensions>
+  </metadata>
+  <trk>
+    <name>Drafted on 2025-03-17</name>
+    <type>hikingTourTrail</type>
+    <trkseg>
+      <trkpt lat="53.945826" lon="-1.031784">
+        <ele>9.95617</ele>
+        <name>Theatre Film &amp; Television, Heslington</name>
+        <extensions>
+          <oa:mapZoom>19</oa:mapZoom>
+        </extensions>
+      </trkpt>
+      <trkpt lat="53.945649" lon="-1.032028">
+        <ele>9.73585</ele>
+      </trkpt>
+      <trkpt lat="53.945346" lon="-1.031942">
+        <ele>9.20931</ele>
+      </trkpt>
+      <trkpt lat="53.945055" lon="-1.032168">
+        <ele>10.09489</ele>
+      </trkpt>
+      <trkpt lat="53.944929" lon="-1.031481">
+        <ele>8.44382</ele>
+      </trkpt>
+      <trkpt lat="53.94486" lon="-1.029979">
+        <ele>8.03089</ele>
+      </trkpt>
+      <trkpt lat="53.945125" lon="-1.028552">
+        <ele>7.64575</ele>
+      </trkpt>
+      <trkpt lat="53.945295" lon="-1.027908">
+        <ele>8.8155</ele>
+      </trkpt>
+      <trkpt lat="53.945554" lon="-1.027597">
+        <ele>9.9087</ele>
+      </trkpt>
+      <trkpt lat="53.945712" lon="-1.026642">
+        <ele>9.52574</ele>
+      </trkpt>
+      <trkpt lat="53.946173" lon="-1.025237">
+        <ele>8.78509</ele>
+      </trkpt>
+      <trkpt lat="53.946527" lon="-1.024282">
+        <ele>9.47567</ele>
+      </trkpt>
+      <trkpt lat="53.946786" lon="-1.023477">
+        <ele>9.80572</ele>
+      </trkpt>
+      <trkpt lat="53.946868" lon="-1.022834">
+        <ele>10.32139</ele>
+      </trkpt>
+      <trkpt lat="53.947247" lon="-1.022158">
+        <ele>10.39084</ele>
+      </trkpt>
+      <trkpt lat="53.947493" lon="-1.022018">
+        <ele>10.55419</ele>
+      </trkpt>
+      <trkpt lat="53.947676" lon="-1.022083">
+        <ele>10.56035</ele>
+      </trkpt>
+      <trkpt lat="53.947676" lon="-1.022404">
+        <ele>10.31788</ele>
+      </trkpt>
+      <trkpt lat="53.947644" lon="-1.023113">
+        <ele>9.94566</ele>
+      </trkpt>
+      <trkpt lat="53.947644" lon="-1.023617">
+        <ele>10.11792</ele>
+      </trkpt>
+      <trkpt lat="53.947802" lon="-1.023992">
+        <ele>10.87492</ele>
+      </trkpt>
+      <trkpt lat="53.947916" lon="-1.024303">
+        <ele>10.75625</ele>
+      </trkpt>
+      <trkpt lat="53.947783" lon="-1.024561">
+        <ele>10.45488</ele>
+      </trkpt>
+      <trkpt lat="53.9476" lon="-1.024604">
+        <ele>9.40849</ele>
+      </trkpt>
+      <trkpt lat="53.947322" lon="-1.024818">
+        <ele>8.38823</ele>
+      </trkpt>
+      <trkpt lat="53.94712" lon="-1.025022">
+        <ele>8.61473</ele>
+      </trkpt>
+      <trkpt lat="53.946969" lon="-1.025333">
+        <ele>8.44529</ele>
+      </trkpt>
+      <trkpt lat="53.946868" lon="-1.02573">
+        <ele>8.25342</ele>
+      </trkpt>
+      <trkpt lat="53.946704" lon="-1.026256">
+        <ele>8.01929</ele>
+      </trkpt>
+      <trkpt lat="53.94664" lon="-1.026793">
+        <ele>8.12531</ele>
+      </trkpt>
+      <trkpt lat="53.946722" lon="-1.027329">
+        <ele>9.0901</ele>
+      </trkpt>
+      <trkpt lat="53.947007" lon="-1.02808">
+        <ele>9.5788</ele>
+      </trkpt>
+      <trkpt lat="53.947063" lon="-1.028359">
+        <ele>9.64304</ele>
+      </trkpt>
+      <trkpt lat="53.946817" lon="-1.028713">
+        <ele>9.63035</ele>
+      </trkpt>
+      <trkpt lat="53.946539" lon="-1.028906">
+        <ele>9.89653</ele>
+      </trkpt>
+      <trkpt lat="53.94635" lon="-1.028885">
+        <ele>9.57441</ele>
+      </trkpt>
+      <trkpt lat="53.946059" lon="-1.029067">
+        <ele>9.61997</ele>
+      </trkpt>
+      <trkpt lat="53.945851" lon="-1.029303">
+        <ele>8.90721</ele>
+      </trkpt>
+      <trkpt lat="53.945838" lon="-1.02999">
+        <ele>10.35218</ele>
+      </trkpt>
+      <trkpt lat="53.945864" lon="-1.030526">
+        <ele>10.9164</ele>
+      </trkpt>
+      <trkpt lat="53.945693" lon="-1.030891">
+        <ele>10.26736</ele>
+      </trkpt>
+      <trkpt lat="53.945655" lon="-1.031234">
+        <ele>8.68204</ele>
+      </trkpt>
+      <trkpt lat="53.945785" lon="-1.031578">
+        <ele>9.40562</ele>
+      </trkpt>
+      <trkpt lat="53.945831" lon="-1.031779">
+        <ele>9.97433</ele>
+        <name>Theatre Film &amp; Television, Heslington</name>
+        <extensions>
+          <oa:mapZoom>19</oa:mapZoom>
+        </extensions>
+      </trkpt>
+    </trkseg>
+  </trk>
+</gpx>
