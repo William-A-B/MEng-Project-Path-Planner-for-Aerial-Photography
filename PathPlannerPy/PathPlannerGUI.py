@@ -7,6 +7,7 @@ from tkinter import ttk
 import tkintermapview
 from tkintermapview import TkinterMapView
 from time import sleep
+from geopy.geocoders import Nominatim
 import PathPlannerDataStorage as ppds
 
 
@@ -36,6 +37,13 @@ class PathPlannerGUI:
         self.map_widget = None
 
         self.setup_map_widget()
+
+        self.location_title_label = None
+        self.location_search_var = tk.StringVar()
+        self.location_search_box = None
+        self.location_search_button = None
+
+        self.setup_map_location_settings()
 
         self.tile_title_label = None
         self.select_tile_label = None
@@ -95,6 +103,18 @@ class PathPlannerGUI:
 
         self.map_widget.add_left_click_map_command(self.on_map_click)
 
+    def setup_map_location_settings(self):
+        # Add label for drawing mode section
+        self.location_title_label = ttk.Label(self.left_frame, text="Location Search", font=("Arial", 12, "bold"))
+        self.location_title_label.pack(pady=(20, 5), anchor="w")
+
+        # Search Bar
+        self.location_search_box = ttk.Entry(self.left_frame, textvariable=self.location_search_var, width=50)
+        self.location_search_box.pack(pady=(10, 5), anchor="w")
+
+        self.location_search_button = ttk.Button(self.left_frame, text="Search", command=self.perform_location_search)
+        self.location_search_button.pack(pady=(10, 5), anchor="w")
+
     def setup_tile_layer_settings(self):
         # Add label for tile selection
         self.tile_title_label = ttk.Label(self.left_frame, text="Map Tile Options", font=("Arial", 12, "bold"))
@@ -131,6 +151,16 @@ class PathPlannerGUI:
 
         self.save_polygon_button = ttk.Button(self.left_frame, text="Save Polygon", command=self.save_polygon)
         self.save_polygon_button.pack(side=tk.TOP, fill=tk.X, padx=5, pady=2)
+
+    def perform_location_search(self):
+        location_name = self.location_search_var.get()
+        print(f"Searching for: {location_name}")
+
+        geolocator = Nominatim(user_agent="Autonomous_UAV_Path_Planner_Application")
+        location = geolocator.geocode(location_name)
+
+        self.map_widget.set_position(location.latitude, location.longitude)
+        self.map_widget.set_zoom(15)
 
     def on_map_click(self, coords):
         if self.mode == "line":
