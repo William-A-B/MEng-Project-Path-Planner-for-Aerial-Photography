@@ -9,6 +9,7 @@ from tkintermapview import TkinterMapView
 from time import sleep
 import PathPlannerDataStorage as ppds
 
+
 class PathPlannerGUI:
     def __init__(self, root):
         # Initialise GUI
@@ -16,6 +17,46 @@ class PathPlannerGUI:
         self.root.title("Path Planner Application")
         self.root.geometry("1080x720")  # Width x Height
 
+        # Store marker positions
+        self.markers = []
+        self.marker_positions = []
+        self.lines = []
+        self.polygons = []
+
+        # Buttons for Line/Polygon Mode
+        self.mode = "null"  # Default mode is null
+
+        self.main_frame = None
+        self.left_frame = None
+        self.right_top_frame = None
+        self.right_bottom_frame = None
+
+        self.setup_gui_frames()
+
+        self.map_widget = None
+
+        self.setup_map_widget()
+
+        self.tile_title_label = None
+        self.select_tile_label = None
+        self.tile_layer_var = tk.StringVar()
+        self.tile_layer_combobox = None
+
+        self.setup_tile_layer_settings()
+
+        self.drawing_mode_title_label = None
+        self.no_mode_button = None
+        self.draw_line_mode_button = None
+        self.draw_polygon_mode_button = None
+        self.clear_map_button = None
+        self.save_polygon_button = None
+
+        self.setup_drawing_modes()
+
+        # Data Storage
+        self.data = ppds.PathPlannerDataStorage("waypoints.xml")
+
+    def setup_gui_frames(self):
         # Create main frame
         self.main_frame = ttk.Frame(self.root, padding=5)
         self.main_frame.pack(expand=True, fill=tk.BOTH)
@@ -39,6 +80,7 @@ class PathPlannerGUI:
         self.right_bottom_frame = ttk.Frame(self.main_frame, padding=5, relief=tk.RIDGE, borderwidth=2)
         self.right_bottom_frame.grid(row=1, column=1, sticky="nsew")
 
+    def setup_map_widget(self):
         # Add a map widget inside the top-right frame
         self.map_widget = tkintermapview.TkinterMapView(self.right_top_frame, width=200, height=250, corner_radius=0)
         self.map_widget.pack(expand=True, fill=tk.BOTH, padx=5, pady=5)
@@ -50,22 +92,18 @@ class PathPlannerGUI:
         # Right click menu options
         self.map_widget.add_right_click_menu_command(label="Add Marker", command=self.add_marker_event,
                                                      pass_coords=True)
-        # Right-click context menu
-        self.context_menu = tk.Menu(self.left_frame, tearoff=0)
-        self.context_menu.add_command(label="OpenStreetMap", command=lambda: self.change_tile_layer("OSM"))
-        self.context_menu.add_command(label="Google Maps", command=lambda: self.change_tile_layer("Google"))
-        self.context_menu.add_command(label="Satellite", command=lambda: self.change_tile_layer("Satellite"))
-        self.context_menu.add_command(label="Satellite", command=lambda: self.change_tile_layer("Terrain"))
 
+        self.map_widget.add_left_click_map_command(self.on_map_click)
+
+    def setup_tile_layer_settings(self):
         # Add label for tile selection
-        self.tile_layer_label = ttk.Label(self.left_frame, text="Map Tile Options", font=("Arial", 12, "bold"))
-        self.tile_layer_label.pack(pady=(10, 5), anchor="w")
+        self.tile_title_label = ttk.Label(self.left_frame, text="Map Tile Options", font=("Arial", 12, "bold"))
+        self.tile_title_label.pack(pady=(10, 5), anchor="w")
 
         # Add a tile layer selection dropdown to the left pane
-        self.tile_layer_label = ttk.Label(self.left_frame, text="Select Tile Layer:")
-        self.tile_layer_label.pack(pady=(10, 5), anchor="w")
+        self.select_tile_label = ttk.Label(self.left_frame, text="Select Tile Layer:")
+        self.select_tile_label.pack(pady=(10, 5), anchor="w")
 
-        self.tile_layer_var = tk.StringVar()
         self.tile_layer_combobox = ttk.Combobox(
             self.left_frame,
             textvariable=self.tile_layer_var,
@@ -74,39 +112,25 @@ class PathPlannerGUI:
         self.tile_layer_combobox.pack(fill=tk.X, padx=5)
         self.tile_layer_combobox.bind("<<ComboboxSelected>>", self.on_tile_layer_change)
 
-        # Store marker positions
-        self.markers = []
-        self.marker_positions = []
-        self.line = None  # Reference to the drawn line/polygon
-        self.lines = []
-        self.polygons = []
-
-        # Buttons for Line/Polygon Mode
-        self.mode = "null"  # Default mode is null
-
+    def setup_drawing_modes(self):
         # Add label for drawing mode section
-        self.drawing_label = ttk.Label(self.left_frame, text="Drawing Modes", font=("Arial", 12, "bold"))
-        self.drawing_label.pack(pady=(20, 5), anchor="w")
+        self.drawing_mode_title_label = ttk.Label(self.left_frame, text="Drawing Modes", font=("Arial", 12, "bold"))
+        self.drawing_mode_title_label.pack(pady=(20, 5), anchor="w")
 
-        self.line_button = ttk.Button(self.left_frame, text="No Mode", command=self.set_mode_empty)
-        self.line_button.pack(side=tk.TOP, fill=tk.X, padx=5, pady=2)
+        self.no_mode_button = ttk.Button(self.left_frame, text="No Mode", command=self.set_mode_empty)
+        self.no_mode_button.pack(side=tk.TOP, fill=tk.X, padx=5, pady=2)
 
-        self.line_button = ttk.Button(self.left_frame, text="Draw Line", command=self.set_line_mode)
-        self.line_button.pack(side=tk.TOP, fill=tk.X, padx=5, pady=2)
+        self.draw_line_mode_button = ttk.Button(self.left_frame, text="Draw Line", command=self.set_line_mode)
+        self.draw_line_mode_button.pack(side=tk.TOP, fill=tk.X, padx=5, pady=2)
 
-        self.polygon_button = ttk.Button(self.left_frame, text="Draw Polygon", command=self.set_polygon_mode)
-        self.polygon_button.pack(side=tk.TOP, fill=tk.X, padx=5, pady=2)
+        self.draw_polygon_mode_button = ttk.Button(self.left_frame, text="Draw Polygon", command=self.set_polygon_mode)
+        self.draw_polygon_mode_button.pack(side=tk.TOP, fill=tk.X, padx=5, pady=2)
 
-        self.clear_button = ttk.Button(self.left_frame, text="Clear", command=self.clear_map)
-        self.clear_button.pack(side=tk.TOP, fill=tk.X, padx=5, pady=2)
+        self.clear_map_button = ttk.Button(self.left_frame, text="Clear", command=self.clear_map)
+        self.clear_map_button.pack(side=tk.TOP, fill=tk.X, padx=5, pady=2)
 
         self.save_polygon_button = ttk.Button(self.left_frame, text="Save Polygon", command=self.save_polygon)
         self.save_polygon_button.pack(side=tk.TOP, fill=tk.X, padx=5, pady=2)
-
-        self.map_widget.add_left_click_map_command(self.on_map_click)
-
-        # Data Storage
-        self.data = ppds.PathPlannerDataStorage("waypoints.xml")
 
     def on_map_click(self, coords):
         if self.mode == "line":
@@ -146,10 +170,8 @@ class PathPlannerGUI:
         self.map_widget.delete_all_marker()
         self.map_widget.delete_all_path()
         self.map_widget.delete_all_polygon()
-        if self.line:
-            self.line.delete()
-            for i, line in enumerate(self.lines):
-                line.delete()
+        for i, line in enumerate(self.lines):
+            line.delete()
         self.marker_positions.clear()
 
     def save_polygon(self):
@@ -168,9 +190,12 @@ class PathPlannerGUI:
         if tile_type == "OSM":
             self.map_widget.set_tile_server("https://a.tile.openstreetmap.org/{z}/{x}/{y}.png")
         elif tile_type == "Google":
-            self.map_widget.set_tile_server("https://mt0.google.com/vt/lyrs=m&hl=en&x={x}&y={y}&z={z}&s=Ga", max_zoom=22)
+            self.map_widget.set_tile_server("https://mt0.google.com/vt/lyrs=m&hl=en&x={x}&y={y}&z={z}&s=Ga",
+                                            max_zoom=22)
         elif tile_type == "Satellite":
-            self.map_widget.set_tile_server("https://mt0.google.com/vt/lyrs=s&hl=en&x={x}&y={y}&z={z}&s=Ga", max_zoom=22)
+            self.map_widget.set_tile_server("https://mt0.google.com/vt/lyrs=s&hl=en&x={x}&y={y}&z={z}&s=Ga",
+                                            max_zoom=22)
         elif tile_type == "Terrain":
-            self.map_widget.set_tile_server("https://mt0.google.com/vt/lyrs=p&hl=en&x={x}&y={y}&z={z}&s=Ga", max_zoom=22)
+            self.map_widget.set_tile_server("https://mt0.google.com/vt/lyrs=p&hl=en&x={x}&y={y}&z={z}&s=Ga",
+                                            max_zoom=22)
         print(f"Tile layer switched to: {tile_type}")
