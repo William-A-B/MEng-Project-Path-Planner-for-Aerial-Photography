@@ -1,47 +1,56 @@
-% polygon_vertices = [
-%     53.950974807525206, -1.0329672619323844;
-%     53.946024591620926, -1.033224753997814;
-%     53.945898302917456, -1.0243412777404899;
-%     53.95089904334211, -1.0251566692810172;
-%     53.950974807525206, -1.0329672619323844 % Close the loop
-% ];
-% 
-% 
-% 
-% % Plot the polygon
-% figure;
-% plot(polygon_vertices(:,2), polygon_vertices(:,1), 'b-o', 'LineWidth', 2);
-% xlabel('Longitude');
-% ylabel('Latitude');
-% title('Defined Surveillance Area');
-% grid on;
-% axis equal;
-% 
-% % Define grid resolution (adjust as needed)
-% num_divisions_x = 20;  % Number of divisions along latitude
-% num_divisions_y = 20;  % Number of divisions along longitude
-% 
-% lat_min = min(polygon_vertices(:,1));
-% lat_max = max(polygon_vertices(:,1));
-% lon_min = min(polygon_vertices(:,2));
-% lon_max = max(polygon_vertices(:,2));
-% 
-% % Generate a grid of waypoints
-% lat_values = linspace(lat_min, lat_max, num_divisions_x);
-% lon_values = linspace(lon_min, lon_max, num_divisions_y);
-% [lon_grid, lat_grid] = ndgrid(lon_values, lat_values);
-% 
-% % Convert to list of waypoints
-% square_centres = [lat_grid(:), lon_grid(:)];
-% 
-% % Plot the grid points
-% hold on;
-% scatter(grid_waypoints(:,2), grid_waypoints(:,1), 'r*');
-% legend('Polygon Boundary', 'Grid Points');
+% =========================================================================
+% REAL COORDINATE TEST
+polygon_vertices = [
+    53.950974807525206, -1.0329672619323844;
+    53.946024591620926, -1.033224753997814;
+    53.945898302917456, -1.0243412777404899;
+    53.95089904334211, -1.0251566692810172;
+    53.950974807525206, -1.0329672619323844 % Close the loop
+];
 
 
 
+% Plot the polygon
+figure;
+plot(polygon_vertices(:,2), polygon_vertices(:,1), 'b-o', 'LineWidth', 2);
+xlabel('Longitude');
+ylabel('Latitude');
+title('Defined Surveillance Area');
+grid on;
+axis equal;
 
+% Define grid resolution (adjust as needed)
+num_divisions_x = 20;  % Number of divisions along latitude
+num_divisions_y = 20;  % Number of divisions along longitude
+
+lat_min = min(polygon_vertices(:,1));
+lat_max = max(polygon_vertices(:,1));
+lon_min = min(polygon_vertices(:,2));
+lon_max = max(polygon_vertices(:,2));
+
+% Generate a grid of waypoints
+lat_values = linspace(lat_min, lat_max, num_divisions_x);
+lon_values = linspace(lon_min, lon_max, num_divisions_y);
+[lon_grid, lat_grid] = ndgrid(lon_values, lat_values);
+
+% Convert to list of waypoints
+grid_waypoints = [lat_grid(:), lon_grid(:)];
+
+% Plot the grid points
+hold on;
+scatter(grid_waypoints(:,2), grid_waypoints(:,1), 'r*');
+legend('Polygon Boundary', 'Grid Points');
+
+square_size = [1, 1]; 
+square_centres = grid_waypoints;
+square_corners = calculate_square_corner_coordinates(square_centres, square_size);
+
+start_pos = polygon_vertices(1, :);
+goal_pos = polygon_vertices(3, :);
+% =========================================================================
+
+% =========================================================================
+% SIMULATED AREA
 
 % Setup environment and algorithm constraints
 % Size of environment
@@ -65,11 +74,13 @@ square_centres = [x(:), y(:)];
 
 % Coordinates for corners for each square
 square_corners = calculate_square_corner_coordinates(square_centres, square_size);
-polygon_corners = calculate_polygon_corner_coordinates(test_coordinates); 
+polygon_corners = calculate_polygon_corner_coordinates(polygon_vertices); 
 
 % Start and end position of UAV
 start_pos = [50, -20];
 goal_pos = [50, 120];
+% =========================================================================
+
 
 figure;
 hold on;
