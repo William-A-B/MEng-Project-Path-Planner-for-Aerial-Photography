@@ -1,48 +1,3 @@
-% polygon_vertices = [
-%     53.950974807525206, -1.0329672619323844;
-%     53.946024591620926, -1.033224753997814;
-%     53.945898302917456, -1.0243412777404899;
-%     53.95089904334211, -1.0251566692810172;
-%     53.950974807525206, -1.0329672619323844 % Close the loop
-% ];
-% 
-% 
-% 
-% % Plot the polygon
-% figure;
-% plot(polygon_vertices(:,2), polygon_vertices(:,1), 'b-o', 'LineWidth', 2);
-% xlabel('Longitude');
-% ylabel('Latitude');
-% title('Defined Surveillance Area');
-% grid on;
-% axis equal;
-% 
-% % Define grid resolution (adjust as needed)
-% num_divisions_x = 20;  % Number of divisions along latitude
-% num_divisions_y = 20;  % Number of divisions along longitude
-% 
-% lat_min = min(polygon_vertices(:,1));
-% lat_max = max(polygon_vertices(:,1));
-% lon_min = min(polygon_vertices(:,2));
-% lon_max = max(polygon_vertices(:,2));
-% 
-% % Generate a grid of waypoints
-% lat_values = linspace(lat_min, lat_max, num_divisions_x);
-% lon_values = linspace(lon_min, lon_max, num_divisions_y);
-% [lon_grid, lat_grid] = ndgrid(lon_values, lat_values);
-% 
-% % Convert to list of waypoints
-% square_centres = [lat_grid(:), lon_grid(:)];
-% 
-% % Plot the grid points
-% hold on;
-% scatter(grid_waypoints(:,2), grid_waypoints(:,1), 'r*');
-% legend('Polygon Boundary', 'Grid Points');
-
-
-
-
-
 % Setup environment and algorithm constraints
 % Size of environment
 x_max = 100;
@@ -51,7 +6,6 @@ y_max = 100;
 % Range of surveillance area
 x_range = [0, x_max]; % meters
 y_range = [0, y_max]; 
-
 square_size = [20, 20]; % Each square's dimensions
 
 % Step size between squares
@@ -65,7 +19,6 @@ square_centres = [x(:), y(:)];
 
 % Coordinates for corners for each square
 square_corners = calculate_square_corner_coordinates(square_centres, square_size);
-polygon_corners = calculate_polygon_corner_coordinates(test_coordinates); 
 
 % Start and end position of UAV
 start_pos = [50, -20];
@@ -180,6 +133,30 @@ grid on;
 axis equal;
 hold off;
 
+%[image_coordinates, waypoints] = smooth_coordinate_path(coordinate_path, waypoint_path, num_waypoints_per_coord);
+[smoothed_coordinates, smoothed_waypoints] = smooth_coordinate_path_v2(coordinate_path, waypoint_path, num_waypoints_per_coord);
+
+figure; hold on;
+grid on; axis equal;
+title('Original vs. Smoothed UAV Path');
+
+% Plot original path
+plot(coordinate_path(:,1), coordinate_path(:,2), 'r--o', 'LineWidth', 1.5, 'MarkerSize', 5, 'DisplayName', 'Original Path');
+
+% Plot smoothed path
+plot(smoothed_coordinates(:,1), smoothed_coordinates(:,2), 'b-o', 'LineWidth', 2, 'MarkerSize', 6, 'DisplayName', 'Smoothed Path');
+
+% Plot original waypoints
+scatter(waypoint_path(:,1), waypoint_path(:,2), 10, 'r', 'filled', 'DisplayName', 'Original Waypoints');
+
+% Plot smoothed waypoints
+scatter(smoothed_waypoints(:,1), smoothed_waypoints(:,2), 10, 'b', 'filled', 'DisplayName', 'Smoothed Waypoints');
+
+% Labels and legend
+xlabel('X (m)'); ylabel('Y (m)');
+legend;
+
+
 % Extract x, y coordinates from all stored waypoints
 x = waypoint_path(:,1);
 y = waypoint_path(:,2);
@@ -212,14 +189,6 @@ function [square_corners] = calculate_square_corner_coordinates(square_centres, 
     end
 end
 
-function [polygon_corners] = calculate_polygon_corner_coordinates(polygon_vertices)
-    num_polygons = numel(polygon_vertices, 1);
-    polygon_corners = [];
-    for i = 1:num_polygons
-        polygon_corners = [polygon_corners; polygon_vertices(i, :)];
-    end
-end
-
 function [departure_dir, arrival_dir] = calculate_directions(coord1, coord2)
     % Calculate direction vector between two coordiantes
     direction_vector = coord2 - coord1;
@@ -231,6 +200,54 @@ function [departure_dir, arrival_dir] = calculate_directions(coord1, coord2)
 end
 
 function [image_coordinates, waypoints] = smooth_coordinate_path(coordinate_path, waypoint_path, num_waypoints_per_coord)
+    % Iterates through the calculated path, and smooths out any points
+    % which could reduce the energy cost
+    
+    num_coordinates = size(coordinate_path, 1);
+    num_waypoints_total = size(waypoint_path, 1);
+
+    % Initialise Dubins path algorithm
+    connectionObj = uavDubinsConnection;
+    connectionObj.MaxRollAngle = 1.1;
+    % Direction UAV arrived at the previous square corner
+    prev_arrival_dir = 0;
+
+    index = 1;
+    for i = 1:num_waypoints_total
+        if ~mod(i, 20) || i == 1
+
+            if (index + 2) > num_coordinates
+                break
+            end
+            current_coord = coordinate_path(index, :);
+            next_next_coord = coordinate_path(index + 2, :);
+
+            % Calculate path from coord at index, to index + 2
+            % Pass through optimal index + 1 coord
+            [departure_dir, arrival_dir] = calculate_directions(current_coord, next_next_coord);
+
+            start_pose = [current_coord, 0, prev_arrival_dir];
+            goal_pose = [next_next_coord, 0, arrival_dir];
+            prev_arrival_dir = arrival_dir;
+            
+            % Calculate Dubins Path and display on plot
+            [pathSegObj, pathCosts] = connect(connectionObj, start_pose, goal_pose);
+            show(pathSegObj{1})
+
+
+            index = index + 2;
+        end
+    end
+
+
+    image_coordinates = coordinate_path;
+    waypoints = waypoint_path;
+
+
+end
+
+
+function [image_coordinates, waypoints] = smooth_coordinate_path_v2(coordinate_path, waypoint_path, num_waypoints_per_coord)
     % Smooths the calculated path by skipping unnecessary waypoints if a 
     % lower-energy Dubins path exists.
 
@@ -288,3 +305,38 @@ function [image_coordinates, waypoints] = smooth_coordinate_path(coordinate_path
     % Output optimized coordinates
     image_coordinates = optimized_path;
 end
+
+
+
+
+    % for i = 1:num_coordinates
+    %     current_coord = coordinate_path(i);
+    %     for j = 1:num_waypoints_per_coord
+    %         current_waypoint = waypoint_path(j, 1:2);
+    % 
+    %         if ~mod(j, 20)
+    % 
+    %         end
+    %     end
+    % end
+
+
+% % Initialise Dubins path algorithm
+% connectionObj = uavDubinsConnection;
+% connectionObj.MaxRollAngle = 1.1;
+% % Direction UAV arrived at the previous square corner
+% prev_arrival_dir = 0;
+% temp_start_pose = coordinate_path(i, :);
+% temp_goal_pose = coordinate_path(i+2, :);
+% % Calculate start and goal position for dubins connection
+% start_pose = [temp_start_pose, 0, prev_arrival_dir];
+% goal_pose = [temp_goal_pose, 0, arrival_dir];
+% prev_arrival_dir = arrival_dir;
+% % Calculate Dubins Path and display on plot
+% [pathSegObj, pathCosts] = connect(connectionObj, start_pose, goal_pose);
+% show(pathSegObj{1})
+% 
+% dubinsPath = pathSegObj{1};
+% segment_waypoints = interpolate(dubinsPath, linspace(0, dubinsPath.Length, num_waypoints));
+% 
+% waypoints = [waypoint_path; segment_waypoints];

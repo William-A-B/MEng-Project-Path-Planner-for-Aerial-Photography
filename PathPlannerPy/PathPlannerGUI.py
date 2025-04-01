@@ -230,8 +230,8 @@ class PathPlannerGUI:
         self.marker_positions.clear()
 
     def save_polygon(self):
-        self.data.add_multiple_waypoints(self.polygons[-1])
-        self.data.save_xml()
+        self.data_handler.add_multiple_waypoints(self.polygons[-1])
+        self.data_handler.save_xml()
 
     def add_marker_event(self, coords):
         print("Add marker:", coords)
