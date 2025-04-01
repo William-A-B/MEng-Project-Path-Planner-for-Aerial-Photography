@@ -12,7 +12,7 @@ import PathPlannerDataStorage as ppds
 
 
 class PathPlannerGUI:
-    def __init__(self, root):
+    def __init__(self, root, data_handler):
         # Initialise GUI
         self.root = root
         self.root.title("Path Planner Application")
@@ -26,6 +26,11 @@ class PathPlannerGUI:
 
         # Buttons for Line/Polygon Mode
         self.mode = "null"  # Default mode is null
+
+        # Data Storage
+        self.data_handler = data_handler
+
+        self.waypoint_data_file = None
 
         self.main_frame = None
         self.left_frame = None
@@ -61,8 +66,14 @@ class PathPlannerGUI:
 
         self.setup_drawing_modes()
 
-        # Data Storage
-        self.data = ppds.PathPlannerDataStorage("waypoints.xml")
+        self.algorithm_title_label = None
+        self.calculate_shortest_path_button = None
+        self.choose_waypoints_button = None
+        self.plot_waypoints_button = None
+
+        self.setup_algorithm_modes()
+
+
 
     def setup_gui_frames(self):
         # Create main frame
@@ -90,7 +101,7 @@ class PathPlannerGUI:
 
     def setup_map_widget(self):
         # Add a map widget inside the top-right frame
-        self.map_widget = tkintermapview.TkinterMapView(self.right_top_frame, width=200, height=250, corner_radius=0)
+        self.map_widget = tkintermapview.TkinterMapView(self.right_top_frame, width=300, height=300, corner_radius=0)
         self.map_widget.pack(expand=True, fill=tk.BOTH, padx=5, pady=5)
 
         # set current widget position and zoom
@@ -106,7 +117,7 @@ class PathPlannerGUI:
     def setup_map_location_settings(self):
         # Add label for drawing mode section
         self.location_title_label = ttk.Label(self.left_frame, text="Location Search", font=("Arial", 12, "bold"))
-        self.location_title_label.pack(pady=(20, 5), anchor="w")
+        self.location_title_label.pack(pady=(5, 5), anchor="w")
 
         # Search Bar
         self.location_search_box = ttk.Entry(self.left_frame, textvariable=self.location_search_var, width=50)
@@ -151,6 +162,20 @@ class PathPlannerGUI:
 
         self.save_polygon_button = ttk.Button(self.left_frame, text="Save Polygon", command=self.save_polygon)
         self.save_polygon_button.pack(side=tk.TOP, fill=tk.X, padx=5, pady=2)
+
+    def setup_algorithm_modes(self):
+        self.calculate_shortest_path_button = None
+        self.choose_waypoints_button = None
+        self.plot_waypoints_button = None
+
+        self.algorithm_title_label = ttk.Label(self.right_bottom_frame, text="Algorithm Parameters", font=("Arial", 12, "bold"))
+        self.algorithm_title_label.pack(pady=(5, 5), anchor="w")
+
+        self.choose_waypoints_button = ttk.Button(self.right_bottom_frame, text="Import existing waypoints", command=self.data_handler.import_waypoints)
+        self.choose_waypoints_button.pack(side=tk.TOP, fill=tk.X, padx=5, pady=2)
+
+        self.plot_waypoints_button = ttk.Button(self.right_bottom_frame, text="Plot waypoints", command=self.plot_waypoints)
+        self.plot_waypoints_button.pack(side=tk.TOP, fill=tk.X, padx=5, pady=2)
 
     def perform_location_search(self):
         location_name = self.location_search_var.get()
@@ -229,3 +254,17 @@ class PathPlannerGUI:
             self.map_widget.set_tile_server("https://mt0.google.com/vt/lyrs=p&hl=en&x={x}&y={y}&z={z}&s=Ga",
                                             max_zoom=22)
         print(f"Tile layer switched to: {tile_type}")
+
+    def plot_waypoints(self):
+        waypoints = self.data_handler.read_temp_coordinate_data()
+
+        if not waypoints:
+            print("Invalid waypoints retrieved")
+            return
+
+        index = 1
+        for coord in waypoints:
+            self.map_widget.set_marker(coord[0], coord[1], text=f"Marker {index}")
+            index += 1
+
+        self.map_widget.set_path(waypoints)

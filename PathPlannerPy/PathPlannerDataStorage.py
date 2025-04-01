@@ -1,6 +1,7 @@
 import xml.etree.ElementTree as ET
 from xml.dom import minidom
-
+import csv
+from tkinter import filedialog
 
 
 class PathPlannerDataStorage:
@@ -11,6 +12,8 @@ class PathPlannerDataStorage:
         self.filename = filename
         self.tree = None
         self.index = 1
+
+        self.waypoints_filename = None
 
     def add_waypoint(self, latitude, longitude):
         waypoint_element = ET.SubElement(self.waypoints_element, "waypoint-" + str(self.index))
@@ -29,7 +32,6 @@ class PathPlannerDataStorage:
             waypoint_longitude.text = str(waypoint_item[1])
             self.index += 1
 
-
     def save_xml(self):
         self.tree = ET.ElementTree(self.root)
         # Generate the XML string with the declaration
@@ -40,3 +42,26 @@ class PathPlannerDataStorage:
         # Write the pretty-printed XML to a file
         with open(self.filename, "w", encoding="utf-8") as f:
             f.write(xml_str_pretty)
+
+    def read_temp_coordinate_data(self):
+        coordinates = []
+
+        if self.waypoints_filename is None:
+            self.import_waypoints()
+
+
+        with open(self.waypoints_filename, newline='', encoding='utf-8') as csvfile:
+            reader = csv.reader(csvfile)
+            next(reader)  # Skip the header
+            for row in reader:
+                if len(row) >= 2 and row[0] and row[1]:  # Ensure latitude and longitude exist
+                    try:
+                        latitude = float(row[0])
+                        longitude = float(row[1])
+                        coordinates.append((latitude, longitude))
+                    except ValueError:
+                        pass  # Ignore rows with invalid numerical data
+        return coordinates
+
+    def import_waypoints(self):
+        self.waypoints_filename = filedialog.askopenfilename()
