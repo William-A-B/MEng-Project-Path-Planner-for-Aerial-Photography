@@ -10,6 +10,9 @@ from time import sleep
 from geopy.geocoders import Nominatim
 import PathPlannerDataStorage as ppds
 
+from PathPlannerMATLAB2D import PathPlanner2D
+import matlab
+
 
 class PathPlannerGUI:
     def __init__(self, root, data_handler):
@@ -171,6 +174,9 @@ class PathPlannerGUI:
         self.algorithm_title_label = ttk.Label(self.right_bottom_frame, text="Algorithm Parameters", font=("Arial", 12, "bold"))
         self.algorithm_title_label.pack(pady=(5, 5), anchor="w")
 
+        self.calculate_shortest_path_button = ttk.Button(self.right_bottom_frame, text="Calculate shortest path", command=self.test_PathPlanner2D)
+        self.calculate_shortest_path_button.pack(side=tk.TOP, fill=tk.X, padx=5, pady=2)
+
         self.choose_waypoints_button = ttk.Button(self.right_bottom_frame, text="Import existing waypoints", command=self.data_handler.import_waypoints)
         self.choose_waypoints_button.pack(side=tk.TOP, fill=tk.X, padx=5, pady=2)
 
@@ -268,3 +274,31 @@ class PathPlannerGUI:
             index += 1
 
         self.map_widget.set_path(waypoints)
+
+    def test_PathPlanner2D(self):
+        if not self.polygons:
+            print("No polygons found, please plot one first")
+            return
+
+        my_PathPlanner2D = PathPlanner2D.initialize()
+        latitudes = []
+        longitudes = []
+
+        for coord in self.polygons[-1]:
+            latitudes.append(coord[0])
+            longitudes.append(coord[1])
+
+        polygon_vertices_waypoints = latitudes + longitudes
+
+        # polygon_verticesIn = matlab.double(
+        #     [53.950974807525206, 53.946024591620926, 53.945898302917456, 53.95089904334211, 53.950974807525206,
+        #      -1.0329672619323844, -1.033224753997814, -1.0243412777404899, -1.0251566692810172, -1.0329672619323844],
+        #     size=(5, 2))
+        polygon_verticesIn = matlab.double(polygon_vertices_waypoints, size=(len(latitudes), 2))
+
+        waypoint_pathOut, square_cornersOut = my_PathPlanner2D.PathPlanner2D(polygon_verticesIn, nargout=2)
+        print(waypoint_pathOut, square_cornersOut, sep='\n')
+
+        sleep(60)
+
+        my_PathPlanner2D.terminate()

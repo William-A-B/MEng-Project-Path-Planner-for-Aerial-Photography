@@ -8,7 +8,8 @@ polygon_vertices = [
     53.950974807525206, -1.0329672619323844 % Close the loop
 ];
 
-
+% Scale values
+polygon_vertices = polygon_vertices * 30000;
 
 % Plot the polygon
 figure;
@@ -20,8 +21,8 @@ grid on;
 axis equal;
 
 % Define grid resolution (adjust as needed)
-num_divisions_x = 20;  % Number of divisions along latitude
-num_divisions_y = 20;  % Number of divisions along longitude
+num_divisions_x = 7;  % Number of divisions along latitude
+num_divisions_y = 7;  % Number of divisions along longitude
 
 lat_min = min(polygon_vertices(:,1));
 lat_max = max(polygon_vertices(:,1));
@@ -41,44 +42,44 @@ hold on;
 scatter(grid_waypoints(:,2), grid_waypoints(:,1), 'r*');
 legend('Polygon Boundary', 'Grid Points');
 
-square_size = [1, 1]; 
+square_size = [30, 30]; 
 square_centres = grid_waypoints;
 square_corners = calculate_square_corner_coordinates(square_centres, square_size);
 
-start_pos = polygon_vertices(1, :);
-goal_pos = polygon_vertices(3, :);
+start_pos = [lat_min, lon_min];
+goal_pos = [lat_max, lon_max];
 % =========================================================================
 
 % =========================================================================
 % SIMULATED AREA
-
-% Setup environment and algorithm constraints
-% Size of environment
-x_max = 100;
-y_max = 100;
-
-% Range of surveillance area
-x_range = [0, x_max]; % meters
-y_range = [0, y_max]; 
-
-square_size = [20, 20]; % Each square's dimensions
-
-% Step size between squares
-square_step_size = square_size;
-
-% Generate coordinates spread across the surveillance area
-[x, y] = ndgrid(x_range(1):square_step_size(1):x_range(2), y_range(1):square_step_size(2):y_range(2));
-
-% Coordintaes for the centres of each square
-square_centres = [x(:), y(:)];
-
-% Coordinates for corners for each square
-square_corners = calculate_square_corner_coordinates(square_centres, square_size);
-polygon_corners = calculate_polygon_corner_coordinates(polygon_vertices); 
-
-% Start and end position of UAV
-start_pos = [50, -20];
-goal_pos = [50, 120];
+% 
+% % Setup environment and algorithm constraints
+% % Size of environment
+% x_max = 100;
+% y_max = 100;
+% 
+% % Range of surveillance area
+% x_range = [0, x_max]; % meters
+% y_range = [0, y_max]; 
+% 
+% square_size = [20, 20]; % Each square's dimensions
+% 
+% % Step size between squares
+% square_step_size = square_size;
+% 
+% % Generate coordinates spread across the surveillance area
+% [x, y] = ndgrid(x_range(1):square_step_size(1):x_range(2), y_range(1):square_step_size(2):y_range(2));
+% 
+% % Coordintaes for the centres of each square
+% square_centres = [x(:), y(:)];
+% 
+% % Coordinates for corners for each square
+% square_corners = calculate_square_corner_coordinates(square_centres, square_size);
+% polygon_corners = calculate_polygon_corner_coordinates(polygon_vertices); 
+% 
+% % Start and end position of UAV
+% start_pos = [50, -20];
+% goal_pos = [50, 120];
 % =========================================================================
 
 
@@ -123,7 +124,7 @@ left_to_right = true;
 
 % Initialise Dubins path algorithm
 connectionObj = uavDubinsConnection;
-connectionObj.MaxRollAngle = 1.1;
+connectionObj.MaxRollAngle = 1;
 
 % Direction UAV arrived at the previous square corner
 prev_arrival_dir = 0;
