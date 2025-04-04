@@ -1,4 +1,4 @@
-% Setup environment and algorithm constraints
+%% Setup environment and algorithm constraints
 % Size of environment
 x_max = 100;
 y_max = 100;
@@ -22,20 +22,34 @@ square_centres = [x(:), y(:)];
 square_corners = calculate_square_corner_coordinates(square_centres, square_size);
 
 % Start and end position of UAV
-start_pos = [50, -20];
+start_pos = [50, -10];
 goal_pos = [50, 120];
 
 wind_direction = 0;
 
+%% Solve TSP
 [coordinate_path, path_cost] = solveTravellingSalesmanProblem(start_pos, goal_pos, square_corners, wind_direction);
-disp(coordinate_path);
-disp(path_cost);
 
+%% Display results
 figure;
 hold on;
+grid on;
+
+% Plot wind direction
+% Compute wind vector components
+wind_x = sin(wind_direction); 
+wind_y = cos(wind_direction);
+
+% Define arrow starting position (e.g., near the start position)
+arrow_start = start_pos - [wind_x, wind_y] * 2; % Shift back slightly for clarity
+
+% Plot the wind direction as an arrow
+quiver(arrow_start(1), arrow_start(2), wind_x, wind_y, 20, 'k', 'LineWidth', 2, 'MaxHeadSize', 20, 'DisplayName', 'Wind Direction');
+
+
 % Plot start and goal positions
-plot(start_pos(1), start_pos(2), 'go', 'MarkerSize', 10, 'MarkerFaceColor', 'g'); % Start
-plot(goal_pos(1), goal_pos(2), 'ro', 'MarkerSize', 10, 'MarkerFaceColor', 'r'); % Goal
+plot(start_pos(1), start_pos(2), 'go', 'MarkerSize', 10, 'MarkerFaceColor', 'g', 'DisplayName', 'Start Position'); % Start
+plot(goal_pos(1), goal_pos(2), 'ro', 'MarkerSize', 10, 'MarkerFaceColor', 'r', 'DisplayName', 'Goal Position'); % Goal
 
 % Draw squares at each center position in red
 num_points = size(square_centres, 1);
@@ -47,9 +61,13 @@ for i = 1:num_points
 end
 
 % Plot cuboid centres
-scatter(square_corners(:,1), square_corners(:,2), 20, 'filled', 'b');
+scatter(square_corners(:,1), square_corners(:,2), 20, 'filled', 'b', 'DisplayName', 'Imaging Positions');
 plot(coordinate_path(:,1), coordinate_path(:,2), 'r--o', 'LineWidth', 1.5, 'MarkerSize', 5, 'DisplayName', 'Original Path');
 
+% Add legend to clarify the wind direction
+legend('show');
+
+%% HELPER FUNCTIONS
 
 function [square_corners] = calculate_square_corner_coordinates(square_centres, square_size)
     % Calculate square corners from each central square position 

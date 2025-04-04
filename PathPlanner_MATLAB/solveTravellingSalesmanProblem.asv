@@ -17,8 +17,10 @@ function [coordinate_path, path_cost] = solveTravellingSalesmanProblem(start_pos
     %% Loop for total number of coordinates.
     for i = 1:num_coordinates
         % distances = pdist2(current_pos, coordinate_points);
-        % Find the next position to move to
-        [minVal, minIndex] = calculate_next_position(coordinate_points, current_pos, wind_direction);
+        % Calculate distance to all coordinates from current position
+        distances = sqrt((coordinate_points(:, 1) - current_pos(1)).^2 + (coordinate_points(:, 2) - current_pos(2)).^2);
+        % Find the minimum distance
+        [minVal, minIndex] = min(distances);
         % Find the distance to the goal position from the current position
         distance_to_goal = sqrt((goal_pos(1) - current_pos(1)).^2 + (goal_pos(2) - current_pos(2)).^2);
         
@@ -57,24 +59,4 @@ function coordinate_points = remove_explored_coordinates(coordinate_points, minI
     end
 end
 
-function [minVal, minIndex] = calculate_next_position(coordinate_points, current_pos, wind_direction)
-
-    % Calculate distance to all coordinates from current position
-    distances = sqrt((coordinate_points(:, 1) - current_pos(1)).^2 + (coordinate_points(:, 2) - current_pos(2)).^2);
-
-    % Compute angle of movement to each candidate point
-    movement_angles = atan2(coordinate_points(:,1) - current_pos(1), coordinate_points(:,2) - current_pos(2));
-    
-    % Compute absolute angular difference to wind direction
-    angle_diff = abs(wrapToPi(movement_angles - wind_direction));
-    
-    % Weight function: penalize movement along wind, reward perpendicular movement
-    wind_penalty = abs(cos(angle_diff)); % Penalizes alignment with wind
-    
-    % Compute adjusted cost
-    adjusted_cost = distances .* (1 + wind_penalty);
-    
-    % Select the best next position considering wind influence
-    [minVal, minIndex] = min(adjusted_cost);
-
-end
+function 
