@@ -4,34 +4,47 @@ function [coordinate_path, path_cost] = solveTravellingSalesmanProblem(start_pos
 
 
 % --------- TSP Solver using Nearest Neighbor Approximation --------------
-    
+    % Number of coordinates to explore
     num_coordinates = size(coordinate_points, 1)/4;
 
     prev_pos = inf;
     current_pos = start_pos;
     next_pos = inf;
+    % Initialise path variable
     coordinate_path = zeros(num_coordinates+2, 2);
     coordinate_path(1, :) = current_pos;
+    complete = 0;
 
     for i = 1:num_coordinates
         % distances = pdist2(current_pos, coordinate_points);
+        % Calculate distance to all coordinates from current position
         distances = sqrt((coordinate_points(:, 1) - current_pos(1)).^2 + (coordinate_points(:, 2) - current_pos(2)).^2);
+        % Find the minimum distance
         [minVal, minIndex] = min(distances);
+        % Find the distance to the goal position from the current position
         distance_to_goal = sqrt((goal_pos(1) - current_pos(1)).^2 + (goal_pos(2) - current_pos(2)).^2);
         
+        % If the distance to the goal is the shortest distance then move to
+        % the goal. If not carry on exploring the grid
         if distance_to_goal < minVal
             next_pos = goal_pos;
+            complete = 1;
         else
             next_pos = coordinate_points(minIndex, :);
         end
             
+        % Remove the found coordinate, so it's not explored again
         coordinate_points(minIndex, :) = [];
-
+    
+        % Update the coordinate path with the next position
         coordinate_path(i+1, :) = next_pos;
+        % Update current and previous positions
         prev_pos = current_pos;
         current_pos = next_pos;
 
-
+        if complete == 1
+            break;
+        end
         
     end
 
