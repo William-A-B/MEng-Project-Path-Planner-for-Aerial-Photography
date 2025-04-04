@@ -34,7 +34,9 @@ function [coordinate_path, path_cost] = solveTravellingSalesmanProblem(start_pos
         end
             
         % Remove the found coordinate, so it's not explored again
-        coordinate_points(minIndex, :) = [];
+        square_alignment = mod(minIndex, 4);
+        
+        coordinate_points = remove_explored_coordinates(coordinate_points, minIndex, square_alignment);
     
         % Update the coordinate path with the next position
         coordinate_path(i+1, :) = next_pos;
@@ -51,3 +53,17 @@ function [coordinate_path, path_cost] = solveTravellingSalesmanProblem(start_pos
     path_cost = 2;
 end
 
+function coordinate_points = remove_explored_coordinates(coordinate_points, minIndex, square_alignment)
+    switch square_alignment
+        case 0
+            coordinate_points(minIndex-3:minIndex, :) = [];
+        case 1
+            coordinate_points(minIndex:minIndex+3, :) = [];
+        case 2
+            coordinate_points(minIndex-1:minIndex+2, :) = [];
+        case 3
+            coordinate_points(minIndex-2:minIndex+1, :) = [];
+        otherwise
+            return
+    end
+end

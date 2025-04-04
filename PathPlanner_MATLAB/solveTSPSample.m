@@ -31,6 +31,25 @@ wind_direction = 0;
 disp(coordinate_path);
 disp(path_cost);
 
+figure;
+hold on;
+% Plot start and goal positions
+plot(start_pos(1), start_pos(2), 'go', 'MarkerSize', 10, 'MarkerFaceColor', 'g'); % Start
+plot(goal_pos(1), goal_pos(2), 'ro', 'MarkerSize', 10, 'MarkerFaceColor', 'r'); % Goal
+
+% Draw squares at each center position in red
+num_points = size(square_centres, 1);
+for i = 1:num_points
+    % Define bottom-left corner of square
+    bottom_left = square_centres(i,:) - square_size / 4;
+    % Draw red square
+    rectangle('Position', [bottom_left, square_size/2], 'EdgeColor', 'c', 'LineWidth', 1);
+end
+
+% Plot cuboid centres
+scatter(square_corners(:,1), square_corners(:,2), 20, 'filled', 'b');
+plot(coordinate_path(:,1), coordinate_path(:,2), 'r--o', 'LineWidth', 1.5, 'MarkerSize', 5, 'DisplayName', 'Original Path');
+
 
 function [square_corners] = calculate_square_corner_coordinates(square_centres, square_size)
     % Calculate square corners from each central square position 
