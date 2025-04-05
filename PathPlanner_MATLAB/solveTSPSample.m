@@ -30,10 +30,15 @@ wind_direction = 0;
 %% Solve TSP
 [coordinate_path, path_cost] = solveTravellingSalesmanProblem(start_pos, goal_pos, square_corners, wind_direction);
 
+
 %% Display results
 figure;
 hold on;
 grid on;
+
+% for i = 1:size(path_cost, 1)
+%     show(path_cost(i));
+% end
 
 % Plot wind direction
 % Compute wind vector components
