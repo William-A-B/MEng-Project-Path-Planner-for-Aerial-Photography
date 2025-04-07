@@ -22,10 +22,10 @@ square_centres = [x(:), y(:)];
 square_corners = calculate_square_corner_coordinates(square_centres, square_size);
 
 % Start and end position of UAV
-start_pos = [50, -10];
-goal_pos = [50, 120];
+start_pos = [-10, -10];
+goal_pos = [110, 110];
 
-wind_direction = 0;
+wind_direction = -pi/4;
 
 %% Solve TSP
 [coordinate_path, path_cost] = solveTravellingSalesmanProblem(start_pos, goal_pos, square_corners, wind_direction);
