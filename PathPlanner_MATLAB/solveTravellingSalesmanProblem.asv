@@ -32,7 +32,7 @@ function [coordinate_path, path_cost] = solveTravellingSalesmanProblem(start_pos
         [minVal, minIndex] = calculate_closest_position(coordinate_points, current_pos, wind_direction);
         % k = 5;
         % candidate_indices = get_top_k_candidates(coordinate_points, current_pos, wind_direction, k);
-        % [minIndex, ~] = lookahead_heurist\ic(candidate_indices, coordinate_points, current_pos, wind_direction);
+        % [minIndex, ~] = lookahead_heuristic(candidate_indices, coordinate_points, current_pos, wind_direction);
         
         next_pos = coordinate_points(minIndex, :);
             
