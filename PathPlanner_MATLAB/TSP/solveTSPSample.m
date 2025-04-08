@@ -28,7 +28,11 @@ goal_pos = [110, 110];
 wind_direction = -pi/4;
 
 %% Solve TSP
-[coordinate_path, path_cost] = solveTravellingSalesmanProblem(start_pos, goal_pos, square_corners, wind_direction);
+% tspSolver = TravellingSalesmanSolver(start_pos, goal_pos, square_corners, wind_direction);
+% 
+% [coordinate_path, path_cost] = tspSolver.solveTravellingSalesmanProblem(tspSolver);
+
+% [coordinate_path, path_cost] = solveTravellingSalesmanProblem(start_pos, goal_pos, square_corners, wind_direction);
 
 
 %% Display results
@@ -67,7 +71,10 @@ end
 
 % Plot cuboid centres
 scatter(square_corners(:,1), square_corners(:,2), 20, 'filled', 'b', 'DisplayName', 'Imaging Positions');
-plot(coordinate_path(:,1), coordinate_path(:,2), 'r--o', 'LineWidth', 1.5, 'MarkerSize', 5, 'DisplayName', 'Original Path');
+
+[coordinate_path, path_cost] = solveTravellingSalesmanProblem(start_pos, goal_pos, square_corners, wind_direction);
+
+% plot(coordinate_path(:,1), coordinate_path(:,2), 'r--o', 'LineWidth', 1.5, 'MarkerSize', 5, 'DisplayName', 'Original Path');
 
 % Add legend to clarify the wind direction
 legend('show');
