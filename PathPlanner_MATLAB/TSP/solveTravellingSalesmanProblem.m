@@ -1,4 +1,4 @@
-function [coordinate_path, path_cost] = solveTravellingSalesmanProblem(start_pos, goal_pos, coordinate_points, wind_direction)
+function [coordinate_path, path_cost] = solveTravellingSalesmanProblem(start_pos, goal_pos, coordinate_waypoints, wind_direction)
 %SOLVETRAVELLINGSALESMANPROBLEM Summary of this function goes here
 %   Detailed explanation goes here
 
@@ -8,7 +8,8 @@ function [coordinate_path, path_cost] = solveTravellingSalesmanProblem(start_pos
     path_cost = 0;
 
     % Number of coordinates to explore
-    num_coordinates = size(coordinate_points, 1)/4;
+    num_coordinates = size(coordinate_waypoints, 1)/4;
+    unexplored_coordinate_points = coordinate_waypoints;
 
     prev_pos = start_pos;
     current_pos = start_pos;
@@ -21,14 +22,14 @@ function [coordinate_path, path_cost] = solveTravellingSalesmanProblem(start_pos
     %% Loop for total number of coordinates.
     for i = 1:num_coordinates
         % Find the next position to move to
-        [minVal, minIndex] = calculate_closest_position(coordinate_points, current_pos, wind_direction);
+        [minVal, minIndex] = calculate_closest_position(unexplored_coordinate_points, current_pos, wind_direction);
 
-        next_pos = coordinate_points(minIndex, :);
+        next_pos = unexplored_coordinate_points(minIndex, :);
 
-        coordinate_path = optimisation_heuristic(current_pos, next_pos, coordinate_path, i, wind_direction);
+        [coordinate_path, unexplored_coordinate_points] = optimisation_heuristic(current_pos, next_pos, coordinate_path, i, unexplored_coordinate_points, wind_direction);
 
         % Remove the found coordinate, so it's not explored again
-        coordinate_points = remove_explored_coordinates(coordinate_points, minIndex);
+        unexplored_coordinate_points = remove_explored_coordinates(unexplored_coordinate_points, minIndex);
     
         % Update the coordinate path with the next position
         coordinate_path(i+1, :) = next_pos;
@@ -41,29 +42,45 @@ function [coordinate_path, path_cost] = solveTravellingSalesmanProblem(start_pos
 
 end
 
-function coordinate_points = remove_explored_coordinates(coordinate_points, minIndex)
+function unexplored_coordinate_points = remove_explored_coordinates(unexplored_coordinate_points, minIndex)
     square_alignment = mod(minIndex, 4);
     switch square_alignment
         case 0
-            coordinate_points(minIndex-3:minIndex, :) = [];
+            unexplored_coordinate_points(minIndex-3:minIndex, :) = [];
         case 1
-            coordinate_points(minIndex:minIndex+3, :) = [];
+            unexplored_coordinate_points(minIndex:minIndex+3, :) = [];
         case 2
-            coordinate_points(minIndex-1:minIndex+2, :) = [];
+            unexplored_coordinate_points(minIndex-1:minIndex+2, :) = [];
         case 3
-            coordinate_points(minIndex-2:minIndex+1, :) = [];
+            unexplored_coordinate_points(minIndex-2:minIndex+1, :) = [];
         otherwise
             return
     end
 end
 
-function [minVal, minIndex] = calculate_closest_position(coordinate_points, current_pos, wind_direction)
+function unexplored_coordinate_points = reinsert_coordinates(unexplored_coordinate_points, coordinate_waypoints, index)
+    square_alignment = mod(index, 4);
+    switch square_alignment
+        case 0
+            unexplored_coordinate_points = [unexplored_coordinate_points; coordinate_waypoints(index-3:index, :)];
+        case 1
+            unexplored_coordinate_points = [unexplored_coordinate_points; coordinate_waypoints(index:index+3, :)];
+        case 2
+            unexplored_coordinate_points = [unexplored_coordinate_points; coordinate_waypoints(index-1:index+2, :)];
+        case 3
+            unexplored_coordinate_points = [unexplored_coordinate_points; coordinate_waypoints(index-2:index+1, :)];
+        otherwise
+            return
+    end
+end
+
+function [minVal, minIndex] = calculate_closest_position(unexplored_coordinate_points, current_pos, wind_direction)
 
     % Calculate distance to all coordinates from current position
-    distances = sqrt((coordinate_points(:, 1) - current_pos(1)).^2 + (coordinate_points(:, 2) - current_pos(2)).^2);
+    distances = sqrt((unexplored_coordinate_points(:, 1) - current_pos(1)).^2 + (unexplored_coordinate_points(:, 2) - current_pos(2)).^2);
 
     % Compute angle of movement to each candidate point
-    movement_angles = atan2(coordinate_points(:,1) - current_pos(1), coordinate_points(:,2) - current_pos(2));
+    movement_angles = atan2(unexplored_coordinate_points(:,1) - current_pos(1), unexplored_coordinate_points(:,2) - current_pos(2));
     
     % Compute absolute angular difference to wind direction
     angle_diff = abs(wrapToPi(movement_angles - wind_direction));
@@ -79,7 +96,7 @@ function [minVal, minIndex] = calculate_closest_position(coordinate_points, curr
 
 end
 
-function coordinate_path = optimisation_heuristic(current_pos, next_pos, coordinate_path, index, wind_direction)
+function [coordinate_path, unexplored_coordinate_points] = optimisation_heuristic(current_pos, next_pos, coordinate_path, index, coordinate_waypoints, unexplored_coordinate_points, wind_direction)
     coordinate_path = coordinate_path;
     current_coord_path = coordinate_path(1:index, :);
 
@@ -87,15 +104,25 @@ function coordinate_path = optimisation_heuristic(current_pos, next_pos, coordin
     closest_coord = current_coord_path(minIndex, :);
 
     if closest_coord ~= current_pos
+        % Remove minIndex to end index of coordinate_path (retracing steps)
+        coordinate_path(minIndex:end, :) = 0;
+        
+        % Reinsert minIndex to end index of coordinate_path into
+        % unexplored_coordinate_points
+        for i = minIndex:index
+            unexplored_coordinate_points = reinsert_coordinates(unexplored_coordinate_points, coordinate_waypoints, i);
+        end
+
+        % Update coordinate_path with the new order
         
     end
 
 end
 
-function candidate_indices = get_top_k_candidates(coordinate_points, current_pos, wind_direction, k)
+function candidate_indices = get_top_k_candidates(unexplored_coordinate_points, current_pos, wind_direction, k)
     % Compute adjusted cost using your wind-aware function
-    distances = sqrt((coordinate_points(:, 1) - current_pos(1)).^2 + (coordinate_points(:, 2) - current_pos(2)).^2);
-    movement_angles = atan2(coordinate_points(:,1) - current_pos(1), coordinate_points(:,2) - current_pos(2));
+    distances = sqrt((unexplored_coordinate_points(:, 1) - current_pos(1)).^2 + (unexplored_coordinate_points(:, 2) - current_pos(2)).^2);
+    movement_angles = atan2(unexplored_coordinate_points(:,1) - current_pos(1), unexplored_coordinate_points(:,2) - current_pos(2));
     angle_diff = abs(wrapToPi(movement_angles - wind_direction));
     wind_penalty = abs(cos(angle_diff));
     adjusted_cost = distances .* (1 + wind_penalty);
@@ -122,15 +149,15 @@ function cost = calculate_adjusted_cost(p1, p2, wind_direction)
     cost = dist * (1 + wind_penalty) + locality_penalty;
 end
 
-function [best_index, best_cost] = lookahead_heuristic(candidate_indices, coordinate_points, current_pos, wind_direction)
+function [best_index, best_cost] = lookahead_heuristic(candidate_indices, unexplored_coordinate_points, current_pos, wind_direction)
     best_cost = Inf;
     best_index = candidate_indices(1); % Default
 
     for i = 1:length(candidate_indices)
         idx1 = candidate_indices(i);
-        pos1 = coordinate_points(idx1, :);
+        pos1 = unexplored_coordinate_points(idx1, :);
         % Remove pos1 to simulate future selection
-        remaining = coordinate_points;
+        remaining = unexplored_coordinate_points;
         square_alignment = mod(idx1, 4);
         remaining = remove_explored_coordinates(remaining, idx1, square_alignment);
 
@@ -212,9 +239,9 @@ function [departure_dir, arrival_dir] = calculate_directions(coord1, coord2)
     arrival_dir = atan2(direction_vector(2), direction_vector(1));
 end
 
-function min_distance = find_min_distance(coordinate_points, current_pos)
+function min_distance = find_min_distance(unexplored_coordinate_points, current_pos)
     % Calculate distance to all coordinates from current position
-    distances = sqrt((coordinate_points(:, 1) - current_pos(1)).^2 + (coordinate_points(:, 2) - current_pos(2)).^2);
+    distances = sqrt((unexplored_coordinate_points(:, 1) - current_pos(1)).^2 + (unexplored_coordinate_points(:, 2) - current_pos(2)).^2);
     % Find minimum
     min_distance = min(distances);
 end

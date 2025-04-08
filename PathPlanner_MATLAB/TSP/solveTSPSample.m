@@ -90,3 +90,18 @@ function [square_corners] = calculate_square_corner_coordinates(square_centres, 
         index = index + 4;
     end
 end
+
+function [square_corner_coords] = new_calculate_square_corner_coordinates(square_centres, square_size)
+    % Calculate square corners from each central square position 
+    num_squares = size(square_centres, 1);
+    square_radius = square_size(1) / 4;
+    square_corner_coords = [];
+    for i = 1:num_squares
+        centre = square_centres(i, :);
+        corners = [centre(1) - square_radius, centre(2) + square_radius;
+                   centre(1) + square_radius, centre(2) + square_radius;
+                   centre(1) + square_radius, centre(2) - square_radius;
+                   centre(1) - square_radius, centre(2) - square_radius];
+        square_corner_coords{i} = corners;
+    end
+end
