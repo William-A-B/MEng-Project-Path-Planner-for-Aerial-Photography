@@ -95,7 +95,7 @@ wind_direction = -pi/5;
 % 
 % [coordinate_path, path_cost] = tspSolver.solveTravellingSalesmanProblem(tspSolver);
 
-[coordinate_path, path_cost] = solveTravellingSalesmanProblem(start_pos, goal_pos, square_corners, wind_direction);
+[coordinate_path, dubins_path_collection] = solveTravellingSalesmanProblem(start_pos, goal_pos, square_corners, wind_direction);
 
 
 %% Display results
@@ -103,9 +103,16 @@ figure;
 hold on;
 grid on;
 
-% for i = 1:size(path_cost, 1)
-%     show(path_cost(i));
-% end
+for i = 1:size(dubins_path_collection, 1)
+    % show(paths{i});
+    disp(i)
+
+    % Evaluate pathSegObj to get path states (poses)
+    interpStates = interpolate(dubins_path_collection{i}, linspace(0, dubins_path_collection{i}.Length, 50));
+    
+    % Plot only the path line (fast)
+    plot(interpStates(:,1), interpStates(:,2), 'b-', 'LineWidth', 1.5, 'HandleVisibility', 'off');
+end
 
 % Plot wind direction
 % Compute wind vector components

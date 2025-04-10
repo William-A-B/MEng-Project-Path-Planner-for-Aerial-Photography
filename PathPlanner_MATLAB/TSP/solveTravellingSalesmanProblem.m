@@ -1,11 +1,11 @@
-function [coordinate_path, path_cost] = solveTravellingSalesmanProblem(start_pos, goal_pos, coordinate_waypoints, wind_direction)
+function [coordinate_path, dubins_path_collection] = solveTravellingSalesmanProblem(start_pos, goal_pos, coordinate_waypoints, wind_direction)
 %SOLVETRAVELLINGSALESMANPROBLEM Summary of this function goes here
 %   Detailed explanation goes here
 
 
 % --------- TSP Solver using Nearest Neighbor Approximation --------------
 
-    path_cost = 0;
+    dubins_path_collection = [];
 
     % Number of coordinates to explore
     num_coordinates = size(coordinate_waypoints, 1)/4;
@@ -22,7 +22,6 @@ function [coordinate_path, path_cost] = solveTravellingSalesmanProblem(start_pos
 
     coordinate_path(2, :) = current_pos;
     unexplored_coordinate_points = remove_explored_coordinates(unexplored_coordinate_points, start_coord_index);
-   
 
     loop_index = 2;
     loop_count = 1;
@@ -35,13 +34,24 @@ function [coordinate_path, path_cost] = solveTravellingSalesmanProblem(start_pos
         end
 
         % Find the next position to move to
-        [minVal, minIndex] = calculate_closest_position(unexplored_coordinate_points, current_pos, wind_direction);
+        [minVal, next_pos_index] = calculate_closest_position(unexplored_coordinate_points, current_pos, wind_direction, true);
 
-        next_pos = unexplored_coordinate_points(minIndex, :);
-        % Remove the found coordinate, so it's not explored again
-        unexplored_coordinate_points = remove_explored_coordinates(unexplored_coordinate_points, minIndex);
-
+        next_pos = unexplored_coordinate_points(next_pos_index, :);
         
+        next_pos_path_midpoint = calculate_midpoint(current_pos, next_pos);
+
+        [minVal, midpoint_index] = calculate_closest_position(unexplored_coordinate_points, next_pos_path_midpoint, wind_direction, false);
+        nearest_coord_midpoint = unexplored_coordinate_points(midpoint_index, :);
+        if nearest_coord_midpoint ~= next_pos
+            next_pos = nearest_coord_midpoint;
+            next_pos_index = midpoint_index;
+        end
+
+        dubins_path = calculate_dubins_connection(prev_pos, current_pos, next_pos);
+        
+        % Remove the found coordinate, so it's not explored again
+        unexplored_coordinate_points = remove_explored_coordinates(unexplored_coordinate_points, next_pos_index);
+
 
         % if size(coordinate_path(1:loop_index, :), 1) > 1
         %     [coordinate_path, unexplored_coordinate_points, reset_index] = optimisation_heuristic(current_pos, next_pos, coordinate_path, loop_index, coordinate_waypoints, unexplored_coordinate_points, wind_direction);
@@ -54,6 +64,7 @@ function [coordinate_path, path_cost] = solveTravellingSalesmanProblem(start_pos
         % Update current and previous positions
         prev_pos = current_pos;
         current_pos = next_pos;
+        dubins_path_collection = [dubins_path_collection; dubins_path];
 
         loop_index = loop_index + 1;
         loop_count = loop_count + 1;
@@ -61,7 +72,6 @@ function [coordinate_path, path_cost] = solveTravellingSalesmanProblem(start_pos
         % plot(coordinate_path(1:loop_index,1), coordinate_path(1:loop_index,2), 'r--o', 'LineWidth', 1.5, 'MarkerSize', 5, 'DisplayName', 'Original Path');
     end
     coordinate_path(num_coordinates+2, :) = goal_pos;
-
 
 end
 
@@ -97,7 +107,7 @@ function unexplored_coordinate_points = reinsert_coordinates(unexplored_coordina
     end
 end
 
-function [minVal, minIndex] = calculate_closest_position(coordinate_points, current_pos, wind_direction)
+function [minVal, minIndex] = calculate_closest_position(coordinate_points, current_pos, wind_direction, apply_wind_compensation)
 
     % Calculate distance to all coordinates from current position
     distances = sqrt((coordinate_points(:, 1) - current_pos(1)).^2 + (coordinate_points(:, 2) - current_pos(2)).^2);
@@ -112,8 +122,11 @@ function [minVal, minIndex] = calculate_closest_position(coordinate_points, curr
     wind_penalty = abs(cos(angle_diff)); % Penalizes alignment with wind
     
     % Compute adjusted cost
-    adjusted_cost = distances .* (1 + (wind_penalty*10));
-    
+    if apply_wind_compensation
+        adjusted_cost = distances .* (1 + (wind_penalty*6));
+    else
+        adjusted_cost = distances .* (1 + (wind_penalty*4));
+    end
     % Select the best next position considering wind influence
     [minVal, minIndex] = min(adjusted_cost);
 
@@ -123,7 +136,7 @@ function [coordinate_path, unexplored_coordinate_points, reset_index] = optimisa
     current_coord_path = coordinate_path(1:index, :);
     reset_index = index;
 
-    [minVal, minIndex] = calculate_closest_position(current_coord_path, next_pos, wind_direction);
+    [minVal, minIndex] = calculate_closest_position(current_coord_path, next_pos, wind_direction, true);
     closest_coord = current_coord_path(minIndex, :);
 
     if closest_coord ~= current_pos
@@ -164,4 +177,42 @@ function [starting_coordinate, start_coord_index] = update_start_pos_with_wind_c
     starting_coordinate = downwind_coord;
     start_coord_index = downwind_coord_index;
 
+end
+
+function midpoint = calculate_midpoint(pos1, pos2)
+    midpoint = [0, 0];
+    midpoint(1) = (pos1(1) + pos2(1)) / 2;
+    midpoint(2) = (pos1(2) + pos2(2)) / 2;
+end
+
+function bearing = calculate_bearing(pos1, pos2)
+    bearing = 0;
+
+    bearing = atan2(pos1(1) - pos2(1), pos1(2) - pos2(2));
+end
+
+function [departure_dir, arrival_dir] = calculate_directions(coord1, coord2)
+    % Calculate direction vector between two coordiantes
+    direction_vector = coord2 - coord1;
+    
+    % Determine departure direction
+    departure_dir = atan2(direction_vector(2), direction_vector(1));
+    % Determine arrival direction (opposite of departure)
+    arrival_dir = atan2(direction_vector(2), direction_vector(1));
+end
+
+function [path_segment, path_cost] = calculate_dubins_connection(previous_pos, current_pos, next_pos)
+    dubConnObj = dubinsConnection;
+    dubConnObj.MinTurningRadius = 30;
+
+    [~, prev_arrival_dir] = calculate_directions(previous_pos, current_pos);
+    [~, next_arrival_dir] = calculate_directions(current_pos, next_pos);
+
+    start_pose = [current_pos, prev_arrival_dir];
+    goal_pose = [next_pos, next_arrival_dir];
+
+    [pathSegObj, pathCosts] = connect(dubConnObj, start_pose, goal_pose);
+    
+    path_segment = pathSegObj;
+    path_cost = pathCosts;
 end
