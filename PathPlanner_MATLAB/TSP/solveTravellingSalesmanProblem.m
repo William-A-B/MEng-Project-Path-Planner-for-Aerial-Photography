@@ -10,19 +10,25 @@ function [coordinate_path, path_cost] = solveTravellingSalesmanProblem(start_pos
     % Number of coordinates to explore
     num_coordinates = size(coordinate_waypoints, 1)/4;
     unexplored_coordinate_points = coordinate_waypoints;
-
-    prev_pos = start_pos;
-    current_pos = start_pos;
-    next_pos = start_pos;
     % Initialise path variable
     coordinate_path = zeros(num_coordinates+2, 2);
-    coordinate_path(1, :) = current_pos;
+    coordinate_path(1, :) = start_pos;
 
-    loop_index = 1;
+    [starting_coordinate, start_coord_index] = update_start_pos_with_wind_compensation(start_pos, wind_direction, coordinate_waypoints);
+
+    prev_pos = starting_coordinate;
+    current_pos = starting_coordinate;
+    next_pos = starting_coordinate;
+
+    coordinate_path(2, :) = current_pos;
+    unexplored_coordinate_points = remove_explored_coordinates(unexplored_coordinate_points, start_coord_index);
+   
+
+    loop_index = 2;
     loop_count = 1;
     %% Loop for total number of coordinates.
     while loop_index <= num_coordinates
-        disp(loop_count)
+        % disp(loop_count);
         
         if isempty(unexplored_coordinate_points)
             break;
@@ -37,10 +43,10 @@ function [coordinate_path, path_cost] = solveTravellingSalesmanProblem(start_pos
 
         
 
-        if size(coordinate_path(1:loop_index, :), 1) > 1
-            [coordinate_path, unexplored_coordinate_points, reset_index] = optimisation_heuristic(current_pos, next_pos, coordinate_path, loop_index, coordinate_waypoints, unexplored_coordinate_points, wind_direction);
-            loop_index = reset_index;
-        end
+        % if size(coordinate_path(1:loop_index, :), 1) > 1
+        %     [coordinate_path, unexplored_coordinate_points, reset_index] = optimisation_heuristic(current_pos, next_pos, coordinate_path, loop_index, coordinate_waypoints, unexplored_coordinate_points, wind_direction);
+        %     loop_index = reset_index;
+        % end
     
         % Update the coordinate path with the next position
         coordinate_path(loop_index+1, :) = next_pos;
@@ -52,7 +58,7 @@ function [coordinate_path, path_cost] = solveTravellingSalesmanProblem(start_pos
         loop_index = loop_index + 1;
         loop_count = loop_count + 1;
 
-        plot(coordinate_path(1:loop_index,1), coordinate_path(1:loop_index,2), 'r--o', 'LineWidth', 1.5, 'MarkerSize', 5, 'DisplayName', 'Original Path');
+        % plot(coordinate_path(1:loop_index,1), coordinate_path(1:loop_index,2), 'r--o', 'LineWidth', 1.5, 'MarkerSize', 5, 'DisplayName', 'Original Path');
     end
     coordinate_path(num_coordinates+2, :) = goal_pos;
 
@@ -106,7 +112,7 @@ function [minVal, minIndex] = calculate_closest_position(coordinate_points, curr
     wind_penalty = abs(cos(angle_diff)); % Penalizes alignment with wind
     
     % Compute adjusted cost
-    adjusted_cost = distances .* (1 + wind_penalty);
+    adjusted_cost = distances .* (1 + (wind_penalty*10));
     
     % Select the best next position considering wind influence
     [minVal, minIndex] = min(adjusted_cost);
@@ -118,13 +124,11 @@ function [coordinate_path, unexplored_coordinate_points, reset_index] = optimisa
     reset_index = index;
 
     [minVal, minIndex] = calculate_closest_position(current_coord_path, next_pos, wind_direction);
-    current_pos
-    next_pos
-    closest_coord = current_coord_path(minIndex, :)
+    closest_coord = current_coord_path(minIndex, :);
 
     if closest_coord ~= current_pos
         % Remove minIndex to end index of coordinate_path (retracing steps)
-        coordinate_path(minIndex+1:end, :) = 0
+        coordinate_path(minIndex+1:end, :) = 0;
       
         % Reinsert minIndex to end index of coordinate_path into
         % unexplored_coordinate_points
@@ -136,4 +140,28 @@ function [coordinate_path, unexplored_coordinate_points, reset_index] = optimisa
         reset_index = minIndex;
     end
     
+end
+
+
+function [starting_coordinate, start_coord_index] = update_start_pos_with_wind_compensation(start_pos, wind_direction, coordinate_waypoints)
+    % Calculate wind vector
+    wind_dx = sin(wind_direction);
+    wind_dy = cos(wind_direction);
+
+    
+    % Vector from start pos to all points
+    Vx = coordinate_waypoints(:, 1) - start_pos(:, 1);
+    Vy = coordinate_waypoints(:, 2) - start_pos(:, 2);
+    
+    % Project coordinate points onto wind direction vector
+    projection = (Vx * wind_dx) + (Vy * wind_dy);
+    
+    % Calculate furthest point downwind
+    [downwind_weight, downwind_coord_index] = max(projection);
+
+    downwind_coord = coordinate_waypoints(downwind_coord_index, :);
+
+    starting_coordinate = downwind_coord;
+    start_coord_index = downwind_coord_index;
+
 end
