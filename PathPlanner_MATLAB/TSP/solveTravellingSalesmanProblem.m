@@ -47,12 +47,33 @@ function [coordinate_path, dubins_path_collection] = solveTravellingSalesmanProb
             next_pos_index = midpoint_index;
         end
 
-        dubins_path = calculate_dubins_connection(prev_pos, current_pos, next_pos);
+        % Calculate dubins path between coordinates
+        % Dubins path doesn't account for wind direction, it uses the basis
+        % of the next_pos calculated above which does use the wind, but
+        % then since the dubins path tests all 4 imaging spots per square
+        % in the optimised function, then it doesn't account for wind. This
+        % can be implemented by doing something similar to
+        % calculate_closesr_position and adding the wind penalty onto the
+        % dubins path cost value.
+        % [dubins_path_segment, dubins_path_cost] = calculate_dubins_connection(prev_pos, current_pos, next_pos);
+        [dubins_path_segment, dubins_path_cost, new_next_pos] = calculate_optimised_dubins_connection(unexplored_coordinate_points, prev_pos, current_pos, next_pos);
+        
+        % update next position if the dubins path new position is different
+        % if new_next_pos ~= next_pos
+        %     next_pos = new_next_pos;
+        %     [next_pos_index, ~] = find(ismember(unexplored_coordinate_points, next_pos, 'rows'));
+        % end
+        
+        % Fix for condition above, as it doesn't always seem to update...?
+        % Why?
+        next_pos = new_next_pos;
+        [next_pos_index, ~] = find(ismember(unexplored_coordinate_points, next_pos, 'rows'));
         
         % Remove the found coordinate, so it's not explored again
         unexplored_coordinate_points = remove_explored_coordinates(unexplored_coordinate_points, next_pos_index);
 
-
+        % Heuristics optimisation, old, currently not working, look into
+        % fixing
         % if size(coordinate_path(1:loop_index, :), 1) > 1
         %     [coordinate_path, unexplored_coordinate_points, reset_index] = optimisation_heuristic(current_pos, next_pos, coordinate_path, loop_index, coordinate_waypoints, unexplored_coordinate_points, wind_direction);
         %     loop_index = reset_index;
@@ -64,7 +85,7 @@ function [coordinate_path, dubins_path_collection] = solveTravellingSalesmanProb
         % Update current and previous positions
         prev_pos = current_pos;
         current_pos = next_pos;
-        dubins_path_collection = [dubins_path_collection; dubins_path];
+        dubins_path_collection = [dubins_path_collection; dubins_path_segment];
 
         loop_index = loop_index + 1;
         loop_count = loop_count + 1;
@@ -86,6 +107,22 @@ function unexplored_coordinate_points = remove_explored_coordinates(unexplored_c
             unexplored_coordinate_points(minIndex-1:minIndex+2, :) = [];
         case 3
             unexplored_coordinate_points(minIndex-2:minIndex+1, :) = [];
+        otherwise
+            return
+    end
+end
+
+function imaging_area_coordinates = get_image_area_coordinates(coordinate_waypoints, index)
+    square_alignment = mod(index, 4);
+    switch square_alignment
+        case 0
+            imaging_area_coordinates = coordinate_waypoints(index-3:index, :);
+        case 1
+            imaging_area_coordinates = coordinate_waypoints(index:index+3, :);
+        case 2
+            imaging_area_coordinates = coordinate_waypoints(index-1:index+2, :);
+        case 3
+            imaging_area_coordinates = coordinate_waypoints(index-2:index+1, :);
         otherwise
             return
     end
@@ -215,4 +252,33 @@ function [path_segment, path_cost] = calculate_dubins_connection(previous_pos, c
     
     path_segment = pathSegObj;
     path_cost = pathCosts;
+end
+
+function [path_segment, path_cost, new_next_pos] = calculate_optimised_dubins_connection(coordinate_waypoints, previous_pos, current_pos, next_pos)
+    dubConnObj = dubinsConnection;
+    dubConnObj.MinTurningRadius = 4;
+
+    [next_pos_index, ~] = find(ismember(coordinate_waypoints, next_pos, 'rows'));
+    possible_next_coordinates = get_image_area_coordinates(coordinate_waypoints, next_pos_index);
+
+    [~, prev_arrival_dir] = calculate_directions(previous_pos, current_pos);
+
+    path_cost = inf;
+    new_next_pos = 0;
+
+    for i = 1:size(possible_next_coordinates, 1)
+        current_next_pos = possible_next_coordinates(i, :);
+        [~, next_arrival_dir] = calculate_directions(current_pos, current_next_pos);
+
+        start_pose = [current_pos, prev_arrival_dir];
+        goal_pose = [current_next_pos, next_arrival_dir];
+
+        [pathSegObj, current_path_cost] = connect(dubConnObj, start_pose, goal_pose);
+
+        if current_path_cost < path_cost
+            path_cost = current_path_cost;
+            path_segment = pathSegObj;
+            new_next_pos = current_next_pos;
+        end
+    end
 end
