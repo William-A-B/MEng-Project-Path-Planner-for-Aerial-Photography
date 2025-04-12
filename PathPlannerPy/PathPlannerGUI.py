@@ -4,6 +4,7 @@ import folium
 from PIL import Image, ImageTk
 import tkinter as tk
 from tkinter import ttk
+from tkinter import messagebox
 import tkintermapview
 from tkintermapview import TkinterMapView
 from time import sleep
@@ -28,7 +29,7 @@ class PathPlannerGUI:
         self.polygons = []
 
         # Buttons for Line/Polygon Mode
-        self.mode = "null"  # Default mode is null
+        self.mode = "none"  # Default mode is none
 
         # Data Storage
         self.data_handler = data_handler
@@ -61,6 +62,7 @@ class PathPlannerGUI:
         self.setup_tile_layer_settings()
 
         self.drawing_mode_title_label = None
+        self.current_drawing_mode_label = None
         self.no_mode_button = None
         self.draw_line_mode_button = None
         self.draw_polygon_mode_button = None
@@ -125,6 +127,7 @@ class PathPlannerGUI:
         # Search Bar
         self.location_search_box = ttk.Entry(self.left_frame, textvariable=self.location_search_var, width=50)
         self.location_search_box.pack(pady=(10, 5), anchor="w")
+        self.location_search_box.bind("<Return>", self.on_search_enter_pressed)
 
         self.location_search_button = ttk.Button(self.left_frame, text="Search", command=self.perform_location_search)
         self.location_search_button.pack(pady=(10, 5), anchor="w")
@@ -150,6 +153,9 @@ class PathPlannerGUI:
         # Add label for drawing mode section
         self.drawing_mode_title_label = ttk.Label(self.left_frame, text="Drawing Modes", font=("Arial", 12, "bold"))
         self.drawing_mode_title_label.pack(pady=(20, 5), anchor="w")
+
+        self.current_drawing_mode_label = ttk.Label(self.left_frame, text=f"Current Mode = {self.mode}", font=("Arial", 11))
+        self.current_drawing_mode_label.pack(pady=(5, 5), anchor="w")
 
         self.no_mode_button = ttk.Button(self.left_frame, text="No Mode", command=self.set_mode_empty)
         self.no_mode_button.pack(side=tk.TOP, fill=tk.X, padx=5, pady=2)
@@ -183,12 +189,23 @@ class PathPlannerGUI:
         self.plot_waypoints_button = ttk.Button(self.right_bottom_frame, text="Plot waypoints", command=self.plot_waypoints)
         self.plot_waypoints_button.pack(side=tk.TOP, fill=tk.X, padx=5, pady=2)
 
+    def on_search_enter_pressed(self, event):
+        self.perform_location_search()
+
     def perform_location_search(self):
         location_name = self.location_search_var.get()
+        if not location_name:
+            messagebox.showwarning("Location Selection", "No location specified, please enter your location in the search bar above.")
+            return
         print(f"Searching for: {location_name}")
 
         geolocator = Nominatim(user_agent="Autonomous_UAV_Path_Planner_Application")
         location = geolocator.geocode(location_name)
+
+        if not location:
+            messagebox.showerror("Location Selection",
+                                   "Invalid location specified, please try again or try the location's postcode.")
+            return
 
         self.map_widget.set_position(location.latitude, location.longitude)
         self.map_widget.set_zoom(15)
@@ -211,19 +228,22 @@ class PathPlannerGUI:
                 self.lines.append(polygon)
                 self.polygons.append(list(self.marker_positions))
                 print(f"Polygon Recorded: {self.marker_positions}")
-        elif self.mode == "null":
+        elif self.mode == "none":
             return
 
     def set_mode_empty(self):
-        self.mode = "null"
+        self.mode = "none"
+        self.current_drawing_mode_label.config(text=f"Current Mode = {self.mode}")
 
     def set_line_mode(self):
         """Switch to line-drawing mode."""
         self.mode = "line"
+        self.current_drawing_mode_label.config(text=f"Current Mode = {self.mode}")
 
     def set_polygon_mode(self):
         """Switch to polygon-drawing mode."""
         self.mode = "polygon"
+        self.current_drawing_mode_label.config(text=f"Current Mode = {self.mode}")
 
     def clear_map(self):
         """Clears all markers and lines/polygons from the map."""
@@ -236,6 +256,10 @@ class PathPlannerGUI:
         self.marker_positions.clear()
 
     def save_polygon(self):
+        if not self.polygons:
+            messagebox.showinfo("Save Polygon Information",
+                                "No polygon/area on map selected, please plot one first.")
+            return
         self.data_handler.add_multiple_waypoints(self.polygons[-1])
         self.data_handler.save_xml()
 
@@ -277,7 +301,7 @@ class PathPlannerGUI:
 
     def test_PathPlanner2D(self):
         if not self.polygons:
-            print("No polygons found, please plot one first")
+            messagebox.showinfo("Shortest Path Area Selection", "No polygon/area on map selected, please plot one first.")
             return
 
         my_PathPlanner2D = PathPlanner2D.initialize()
