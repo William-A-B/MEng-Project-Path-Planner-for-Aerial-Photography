@@ -87,7 +87,7 @@ start_pos = [-10, -10];
 goal_pos = [110, 110];
 
 %% Wind conditions
-wind_direction = -pi/5;
+wind_direction = -pi/4;
 
 
 %% Solve TSP
@@ -123,7 +123,8 @@ wind_y = cos(wind_direction);
 arrow_start = start_pos - [wind_x, wind_y] * 2; % Shift back slightly for clarity
 
 % Plot the wind direction as an arrow
-quiver(arrow_start(1), arrow_start(2), wind_x, wind_y, range(polygon_vertices(:, 1))/5, 'k', 'LineWidth', 2, 'MaxHeadSize', 20, 'DisplayName', 'Wind Direction');
+% quiver(arrow_start(1), arrow_start(2), wind_x, wind_y, range(polygon_vertices(:, 1))/5, 'k', 'LineWidth', 2, 'MaxHeadSize', 20, 'DisplayName', 'Wind Direction');
+quiver(arrow_start(1), arrow_start(2), wind_x, wind_y, 40, 'k', 'LineWidth', 2, 'MaxHeadSize', 20, 'DisplayName', 'Wind Direction');
 
 
 % Plot start and goal positions

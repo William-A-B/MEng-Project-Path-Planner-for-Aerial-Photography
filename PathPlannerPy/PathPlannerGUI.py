@@ -14,7 +14,6 @@ import PathPlannerDataStorage as ppds
 from PathPlannerMATLAB2D import PathPlanner2D
 import matlab
 
-
 class PathPlannerGUI:
     def __init__(self, root, data_handler):
         # Initialise GUI
@@ -56,11 +55,13 @@ class PathPlannerGUI:
 
         self.tile_title_label = None
         self.select_tile_label = None
-        self.tile_layer_var = tk.StringVar()
-        self.tile_layer_combobox = None
+        self.tile_button_frame = None
+        # self.tile_layer_var = tk.StringVar()
+        # self.tile_layer_combobox = None
 
         self.setup_tile_layer_settings()
 
+        self.drawing_mode_frame = None
         self.drawing_mode_title_label = None
         self.current_drawing_mode_label = None
         self.no_mode_button = None
@@ -71,6 +72,10 @@ class PathPlannerGUI:
 
         self.setup_drawing_modes()
 
+        self.waypoint_marker_frame = None
+        self.waypoint_marker_messagebox = None
+        self.setup_waypoint_marker_coordinate_output()
+
         self.algorithm_title_label = None
         self.calculate_shortest_path_button = None
         self.choose_waypoints_button = None
@@ -78,7 +83,19 @@ class PathPlannerGUI:
 
         self.setup_algorithm_modes()
 
-
+        # Zoom mapping based on type
+        self.map_zoom_levels = {
+            "hamlet": 15,
+            "village": 14,
+            "town": 13,
+            "city": 12,
+            "suburb": 14,
+            "neighbourhood": 15,
+            "county": 9,
+            "state": 7,
+            "country": 5,
+            "administrative": 13
+        }
 
     def setup_gui_frames(self):
         # Create main frame
@@ -87,9 +104,9 @@ class PathPlannerGUI:
 
         # Configure row/column weights
         self.main_frame.columnconfigure(0, weight=1)
-        self.main_frame.columnconfigure(1, weight=1)
-        self.main_frame.rowconfigure(0, weight=1)
-        self.main_frame.rowconfigure(1, weight=1)
+        self.main_frame.columnconfigure(1, weight=3)
+        self.main_frame.rowconfigure(0, weight=5)
+        self.main_frame.rowconfigure(1, weight=2)
 
         # Left Frame (50% Width)
         self.left_frame = ttk.Frame(self.main_frame, padding=5, relief=tk.RIDGE, borderwidth=2)
@@ -141,13 +158,27 @@ class PathPlannerGUI:
         self.select_tile_label = ttk.Label(self.left_frame, text="Select Tile Layer:")
         self.select_tile_label.pack(pady=(10, 5), anchor="w")
 
-        self.tile_layer_combobox = ttk.Combobox(
-            self.left_frame,
-            textvariable=self.tile_layer_var,
-            values=["OSM", "Google", "Satellite", "Terrain"]
-        )
-        self.tile_layer_combobox.pack(fill=tk.X, padx=5)
-        self.tile_layer_combobox.bind("<<ComboboxSelected>>", self.on_tile_layer_change)
+        # self.tile_layer_combobox = ttk.Combobox(
+        #     self.left_frame,
+        #     textvariable=self.tile_layer_var,
+        #     values=["OSM", "Google", "Satellite", "Terrain"]
+        # )
+        # self.tile_layer_combobox.pack(fill=tk.X, padx=5)
+        # self.tile_layer_combobox.bind("<<ComboboxSelected>>", self.on_tile_layer_change)
+
+        # Frame to hold buttons side by side
+        self.tile_button_frame = ttk.Frame(self.left_frame)
+        self.tile_button_frame.pack(pady=(0, 10), fill=tk.X)
+
+        for i in range(4):
+            self.tile_button_frame.columnconfigure(i, weight=1)
+
+        # Create tile layer buttons
+        tiles = ["OSM", "Google", "Satellite", "Terrain"]
+        for i, tile in enumerate(tiles):
+            btn = ttk.Button(self.tile_button_frame, text=tile, command=lambda t=tile: self.change_tile_layer(t))
+            btn.grid(row=0, column=i, sticky="ew", padx=2)
+
 
     def setup_drawing_modes(self):
         # Add label for drawing mode section
@@ -157,20 +188,35 @@ class PathPlannerGUI:
         self.current_drawing_mode_label = ttk.Label(self.left_frame, text=f"Current Mode = {self.mode}", font=("Arial", 11))
         self.current_drawing_mode_label.pack(pady=(5, 5), anchor="w")
 
-        self.no_mode_button = ttk.Button(self.left_frame, text="No Mode", command=self.set_mode_empty)
-        self.no_mode_button.pack(side=tk.TOP, fill=tk.X, padx=5, pady=2)
+        # Setup frame for mode buttons
+        self.drawing_mode_frame = ttk.Frame(self.left_frame)
+        self.drawing_mode_frame.pack(pady=(0, 10), fill=tk.X)
 
-        self.draw_line_mode_button = ttk.Button(self.left_frame, text="Draw Line", command=self.set_line_mode)
-        self.draw_line_mode_button.pack(side=tk.TOP, fill=tk.X, padx=5, pady=2)
+        for i in range(3):
+            self.drawing_mode_frame.columnconfigure(i, weight=1)
 
-        self.draw_polygon_mode_button = ttk.Button(self.left_frame, text="Draw Polygon", command=self.set_polygon_mode)
-        self.draw_polygon_mode_button.pack(side=tk.TOP, fill=tk.X, padx=5, pady=2)
+        self.no_mode_button = ttk.Button(self.drawing_mode_frame, text="No Mode", command=self.set_mode_empty)
+        self.no_mode_button.grid(row=0, column=0, sticky="ew", padx=2)
+
+        self.draw_line_mode_button = ttk.Button(self.drawing_mode_frame, text="Draw Line", command=self.set_line_mode)
+        self.draw_line_mode_button.grid(row=0, column=1, sticky="ew", padx=2)
+
+        self.draw_polygon_mode_button = ttk.Button(self.drawing_mode_frame, text="Draw Polygon", command=self.set_polygon_mode)
+        self.draw_polygon_mode_button.grid(row=0, column=2, sticky="ew", padx=2)
 
         self.clear_map_button = ttk.Button(self.left_frame, text="Clear", command=self.clear_map)
         self.clear_map_button.pack(side=tk.TOP, fill=tk.X, padx=5, pady=2)
 
         self.save_polygon_button = ttk.Button(self.left_frame, text="Save Polygon", command=self.save_polygon)
         self.save_polygon_button.pack(side=tk.TOP, fill=tk.X, padx=5, pady=2)
+
+    def setup_waypoint_marker_coordinate_output(self):
+        self.waypoint_marker_frame = ttk.Frame(self.left_frame)
+        self.waypoint_marker_frame.columnconfigure(0, weight=1)
+        self.waypoint_marker_frame.pack(pady=(0, 10), fill=tk.X)
+        self.waypoint_marker_messagebox = tk.Message(self.waypoint_marker_frame, text="this is some text")
+        self.waypoint_marker_messagebox.config(font=("Arial", 11))
+        self.waypoint_marker_messagebox.pack(pady=(0, 10), fill=tk.X)
 
     def setup_algorithm_modes(self):
         self.calculate_shortest_path_button = None
@@ -200,15 +246,20 @@ class PathPlannerGUI:
         print(f"Searching for: {location_name}")
 
         geolocator = Nominatim(user_agent="Autonomous_UAV_Path_Planner_Application")
-        location = geolocator.geocode(location_name)
+        location = geolocator.geocode(location_name, country_codes="gb", addressdetails=True)
 
         if not location:
             messagebox.showerror("Location Selection",
                                    "Invalid location specified, please try again or try the location's postcode.")
             return
 
+        location_type = location.raw.get("type", "")
+        map_zoom = self.map_zoom_levels.get(location_type, 13)  # default zoom
+        print(f"Located: {location.address} ({location_type}) -> zoom {map_zoom}")
+
+
         self.map_widget.set_position(location.latitude, location.longitude)
-        self.map_widget.set_zoom(15)
+        self.map_widget.set_zoom(map_zoom)
 
     def on_map_click(self, coords):
         if self.mode == "line":
@@ -251,8 +302,9 @@ class PathPlannerGUI:
         self.map_widget.delete_all_marker()
         self.map_widget.delete_all_path()
         self.map_widget.delete_all_polygon()
-        for i, line in enumerate(self.lines):
-            line.delete()
+        self.lines.clear()
+        self.polygons.clear()
+        self.markers.clear()
         self.marker_positions.clear()
 
     def save_polygon(self):
