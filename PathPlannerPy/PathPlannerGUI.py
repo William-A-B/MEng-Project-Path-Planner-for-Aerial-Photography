@@ -337,7 +337,7 @@ class PathPlannerGUI:
         elevation_at_coord = elevation_data.get_elevation(coords[0], coords[1])
         new_marker = self.map_widget.set_marker(coords[0], coords[1], text=f'Elevation = {elevation_at_coord}m')
         image = elevation_data.get_image((1080, 1080), (coords[0]-0.1, coords[0]+0.1), (coords[1]-0.1, coords[1]+0.1), 1300)
-        # the image s a standard PIL object, you can save or show it:
+        # the image is a standard PIL object, you can save or show it:
         image.show()
 
     def change_tile_layer(self, tile_type):
