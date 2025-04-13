@@ -2,16 +2,32 @@
 <PathPlannerDataStorage>
   <waypoints>
     <waypoint-1>
-      <latitude>53.945115304421435</latitude>
-      <longitude>-1.028031997344982</longitude>
+      <latitude>53.31476930294012</latitude>
+      <longitude>-3.0939203600302676</longitude>
     </waypoint-1>
     <waypoint-2>
-      <latitude>53.947438998976345</latitude>
-      <longitude>-1.0284182354431266</longitude>
+      <latitude>53.313551460689226</latitude>
+      <longitude>-3.0934053758994082</longitude>
     </waypoint-2>
     <waypoint-3>
-      <latitude>53.94713591572369</latitude>
-      <longitude>-1.0337397381286735</longitude>
+      <latitude>53.31246819285747</latitude>
+      <longitude>-3.0923807720557193</longitude>
     </waypoint-3>
+    <waypoint-4>
+      <latitude>53.31202269899681</latitude>
+      <longitude>-3.0920696358099917</longitude>
+    </waypoint-4>
+    <waypoint-5>
+      <latitude>53.31226627894992</latitude>
+      <longitude>-3.092917213858698</longitude>
+    </waypoint-5>
+    <waypoint-6>
+      <latitude>53.313230970111334</latitude>
+      <longitude>-3.0940437416449527</longitude>
+    </waypoint-6>
+    <waypoint-7>
+      <latitude>53.31473725490498</latitude>
+      <longitude>-3.094387064398859</longitude>
+    </waypoint-7>
   </waypoints>
 </PathPlannerDataStorage>

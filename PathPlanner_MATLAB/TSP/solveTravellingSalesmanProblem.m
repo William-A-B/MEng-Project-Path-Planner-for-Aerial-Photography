@@ -53,21 +53,16 @@ function [coordinate_path, dubins_path_collection] = solveTravellingSalesmanProb
         % then since the dubins path tests all 4 imaging spots per square
         % in the optimised function, then it doesn't account for wind. This
         % can be implemented by doing something similar to
-        % calculate_closesr_position and adding the wind penalty onto the
+        % calculate_closest_position and adding the wind penalty onto the
         % dubins path cost value.
         % [dubins_path_segment, dubins_path_cost] = calculate_dubins_connection(prev_pos, current_pos, next_pos);
         [dubins_path_segment, dubins_path_cost, new_next_pos] = calculate_optimised_dubins_connection(unexplored_coordinate_points, prev_pos, current_pos, next_pos);
         
         % update next position if the dubins path new position is different
-        % if new_next_pos ~= next_pos
-        %     next_pos = new_next_pos;
-        %     [next_pos_index, ~] = find(ismember(unexplored_coordinate_points, next_pos, 'rows'));
-        % end
-        
-        % Fix for condition above, as it doesn't always seem to update...?
-        % Why?
-        next_pos = new_next_pos;
-        [next_pos_index, ~] = find(ismember(unexplored_coordinate_points, next_pos, 'rows'));
+        if ~isequal(next_pos, new_next_pos)
+            next_pos = new_next_pos;
+            [next_pos_index, ~] = find(ismember(unexplored_coordinate_points, next_pos, 'rows'));
+        end
         
         % Remove the found coordinate, so it's not explored again
         unexplored_coordinate_points = remove_explored_coordinates(unexplored_coordinate_points, next_pos_index);
