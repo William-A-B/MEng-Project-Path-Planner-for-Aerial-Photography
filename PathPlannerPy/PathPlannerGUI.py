@@ -14,6 +14,8 @@ import PathPlannerDataStorage as ppds
 from PathPlannerMATLAB2D import PathPlanner2D
 import matlab
 
+import srtm
+
 
 class PathPlannerGUI:
     def __init__(self, root, data_handler):
@@ -331,7 +333,12 @@ class PathPlannerGUI:
 
     def add_marker_event(self, coords):
         print("Add marker:", coords)
-        new_marker = self.map_widget.set_marker(coords[0], coords[1], text="new marker")
+        elevation_data = srtm.get_data()
+        elevation_at_coord = elevation_data.get_elevation(coords[0], coords[1])
+        new_marker = self.map_widget.set_marker(coords[0], coords[1], text=f'Elevation = {elevation_at_coord}m')
+        image = elevation_data.get_image((1080, 1080), (coords[0]-0.1, coords[0]+0.1), (coords[1]-0.1, coords[1]+0.1), 1300)
+        # the image s a standard PIL object, you can save or show it:
+        image.show()
 
     def change_tile_layer(self, tile_type):
         if tile_type == "OSM":

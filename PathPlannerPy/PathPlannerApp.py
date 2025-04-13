@@ -7,6 +7,7 @@ import PathPlannerDataStorage as ppds
 import PathPlannerGUI as ppgui
 
 
+
 class PathPlannerApp:
     def __init__(self, root_tk):
         self.data_handler = ppds.PathPlannerDataStorage("waypoints.xml")
@@ -26,6 +27,8 @@ def main():
     app = PathPlannerApp(root_tk)
     # app.draw_calculated_UAV_path()
     root_tk.mainloop()
+
+
 
 
 if __name__ == '__main__':
