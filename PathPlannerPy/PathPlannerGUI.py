@@ -14,6 +14,7 @@ import PathPlannerDataStorage as ppds
 from PathPlannerMATLAB2D import PathPlanner2D
 import matlab
 
+
 class PathPlannerGUI:
     def __init__(self, root, data_handler):
         # Initialise GUI
@@ -74,6 +75,7 @@ class PathPlannerGUI:
 
         self.waypoint_marker_frame = None
         self.waypoint_marker_messagebox = None
+        self.waypoint_message_var = tk.StringVar()
         self.setup_waypoint_marker_coordinate_output()
 
         self.algorithm_title_label = None
@@ -158,14 +160,6 @@ class PathPlannerGUI:
         self.select_tile_label = ttk.Label(self.left_frame, text="Select Tile Layer:")
         self.select_tile_label.pack(pady=(10, 5), anchor="w")
 
-        # self.tile_layer_combobox = ttk.Combobox(
-        #     self.left_frame,
-        #     textvariable=self.tile_layer_var,
-        #     values=["OSM", "Google", "Satellite", "Terrain"]
-        # )
-        # self.tile_layer_combobox.pack(fill=tk.X, padx=5)
-        # self.tile_layer_combobox.bind("<<ComboboxSelected>>", self.on_tile_layer_change)
-
         # Frame to hold buttons side by side
         self.tile_button_frame = ttk.Frame(self.left_frame)
         self.tile_button_frame.pack(pady=(0, 10), fill=tk.X)
@@ -179,13 +173,13 @@ class PathPlannerGUI:
             btn = ttk.Button(self.tile_button_frame, text=tile, command=lambda t=tile: self.change_tile_layer(t))
             btn.grid(row=0, column=i, sticky="ew", padx=2)
 
-
     def setup_drawing_modes(self):
         # Add label for drawing mode section
         self.drawing_mode_title_label = ttk.Label(self.left_frame, text="Drawing Modes", font=("Arial", 12, "bold"))
         self.drawing_mode_title_label.pack(pady=(20, 5), anchor="w")
 
-        self.current_drawing_mode_label = ttk.Label(self.left_frame, text=f"Current Mode = {self.mode}", font=("Arial", 11))
+        self.current_drawing_mode_label = ttk.Label(self.left_frame, text=f"Current Mode = {self.mode}",
+                                                    font=("Arial", 11))
         self.current_drawing_mode_label.pack(pady=(5, 5), anchor="w")
 
         # Setup frame for mode buttons
@@ -201,7 +195,8 @@ class PathPlannerGUI:
         self.draw_line_mode_button = ttk.Button(self.drawing_mode_frame, text="Draw Line", command=self.set_line_mode)
         self.draw_line_mode_button.grid(row=0, column=1, sticky="ew", padx=2)
 
-        self.draw_polygon_mode_button = ttk.Button(self.drawing_mode_frame, text="Draw Polygon", command=self.set_polygon_mode)
+        self.draw_polygon_mode_button = ttk.Button(self.drawing_mode_frame, text="Draw Polygon",
+                                                   command=self.set_polygon_mode)
         self.draw_polygon_mode_button.grid(row=0, column=2, sticky="ew", padx=2)
 
         self.clear_map_button = ttk.Button(self.left_frame, text="Clear", command=self.clear_map)
@@ -214,25 +209,36 @@ class PathPlannerGUI:
         self.waypoint_marker_frame = ttk.Frame(self.left_frame)
         self.waypoint_marker_frame.columnconfigure(0, weight=1)
         self.waypoint_marker_frame.pack(pady=(0, 10), fill=tk.X)
-        self.waypoint_marker_messagebox = tk.Message(self.waypoint_marker_frame, text="this is some text")
-        self.waypoint_marker_messagebox.config(font=("Arial", 11))
+
+        # Bind resize event to update the message width
+        self.waypoint_marker_frame.bind("<Configure>", self.update_message_box_width)
+
+        self.waypoint_marker_messagebox = tk.Message(self.waypoint_marker_frame, textvariable=self.waypoint_message_var)
+        self.waypoint_marker_messagebox.config(font=("Courier", 9))
         self.waypoint_marker_messagebox.pack(pady=(0, 10), fill=tk.X)
+
+    def update_message_box_width(self, event):
+        self.waypoint_marker_messagebox.config(width=event.width)
 
     def setup_algorithm_modes(self):
         self.calculate_shortest_path_button = None
         self.choose_waypoints_button = None
         self.plot_waypoints_button = None
 
-        self.algorithm_title_label = ttk.Label(self.right_bottom_frame, text="Algorithm Parameters", font=("Arial", 12, "bold"))
+        self.algorithm_title_label = ttk.Label(self.right_bottom_frame, text="Algorithm Parameters",
+                                               font=("Arial", 12, "bold"))
         self.algorithm_title_label.pack(pady=(5, 5), anchor="w")
 
-        self.calculate_shortest_path_button = ttk.Button(self.right_bottom_frame, text="Calculate shortest path", command=self.test_PathPlanner2D)
+        self.calculate_shortest_path_button = ttk.Button(self.right_bottom_frame, text="Calculate shortest path",
+                                                         command=self.test_PathPlanner2D)
         self.calculate_shortest_path_button.pack(side=tk.TOP, fill=tk.X, padx=5, pady=2)
 
-        self.choose_waypoints_button = ttk.Button(self.right_bottom_frame, text="Import existing waypoints", command=self.data_handler.import_waypoints)
+        self.choose_waypoints_button = ttk.Button(self.right_bottom_frame, text="Import existing waypoints",
+                                                  command=self.data_handler.import_waypoints)
         self.choose_waypoints_button.pack(side=tk.TOP, fill=tk.X, padx=5, pady=2)
 
-        self.plot_waypoints_button = ttk.Button(self.right_bottom_frame, text="Plot waypoints", command=self.plot_waypoints)
+        self.plot_waypoints_button = ttk.Button(self.right_bottom_frame, text="Plot waypoints",
+                                                command=self.plot_waypoints)
         self.plot_waypoints_button.pack(side=tk.TOP, fill=tk.X, padx=5, pady=2)
 
     def on_search_enter_pressed(self, event):
@@ -241,7 +247,8 @@ class PathPlannerGUI:
     def perform_location_search(self):
         location_name = self.location_search_var.get()
         if not location_name:
-            messagebox.showwarning("Location Selection", "No location specified, please enter your location in the search bar above.")
+            messagebox.showwarning("Location Selection", "No location specified, please enter your location in the "
+                                                         "search bar above.")
             return
         print(f"Searching for: {location_name}")
 
@@ -250,13 +257,12 @@ class PathPlannerGUI:
 
         if not location:
             messagebox.showerror("Location Selection",
-                                   "Invalid location specified, please try again or try the location's postcode.")
+                                 "Invalid location specified, please try again or try the location's postcode.")
             return
 
         location_type = location.raw.get("type", "")
         map_zoom = self.map_zoom_levels.get(location_type, 13)  # default zoom
         print(f"Located: {location.address} ({location_type}) -> zoom {map_zoom}")
-
 
         self.map_widget.set_position(location.latitude, location.longitude)
         self.map_widget.set_zoom(map_zoom)
@@ -282,6 +288,13 @@ class PathPlannerGUI:
         elif self.mode == "none":
             return
 
+        # Update coordinate list in message box
+        coordinate_messagebox_text = ""
+        for i, coord in enumerate(self.marker_positions):
+            coordinate_messagebox_text = coordinate_messagebox_text + f"{i}: {coord}\n"
+
+        self.waypoint_message_var.set(coordinate_messagebox_text)
+
     def set_mode_empty(self):
         self.mode = "none"
         self.current_drawing_mode_label.config(text=f"Current Mode = {self.mode}")
@@ -306,6 +319,7 @@ class PathPlannerGUI:
         self.polygons.clear()
         self.markers.clear()
         self.marker_positions.clear()
+        self.waypoint_message_var.set("")
 
     def save_polygon(self):
         if not self.polygons:
@@ -318,10 +332,6 @@ class PathPlannerGUI:
     def add_marker_event(self, coords):
         print("Add marker:", coords)
         new_marker = self.map_widget.set_marker(coords[0], coords[1], text="new marker")
-
-    def on_tile_layer_change(self, event):
-        selected_tile = self.tile_layer_var.get()
-        self.change_tile_layer(selected_tile)
 
     def change_tile_layer(self, tile_type):
         if tile_type == "OSM":
@@ -353,7 +363,8 @@ class PathPlannerGUI:
 
     def test_PathPlanner2D(self):
         if not self.polygons:
-            messagebox.showinfo("Shortest Path Area Selection", "No polygon/area on map selected, please plot one first.")
+            messagebox.showinfo("Shortest Path Area Selection",
+                                "No polygon/area on map selected, please plot one first.")
             return
 
         my_PathPlanner2D = PathPlanner2D.initialize()
