@@ -16,33 +16,39 @@ function [coordinate_path, dubins_path_collection] = solveTravellingSalesmanProb
 
     [starting_coordinate, start_coord_index] = update_start_pos_with_wind_compensation(start_pos, wind_direction, coordinate_waypoints);
 
-    prev_pos = starting_coordinate;
-    current_pos = starting_coordinate;
+    prev_pos = start_pos;
+    current_pos = start_pos;
     next_pos = starting_coordinate;
 
-    coordinate_path(2, :) = current_pos;
+    [dubins_path_segment, ~] = calculate_dubins_connection(prev_pos, current_pos, next_pos);
+
+    coordinate_path(2, :) = next_pos;
     unexplored_coordinate_points = remove_explored_coordinates(unexplored_coordinate_points, start_coord_index);
+    dubins_path_collection = [dubins_path_collection; dubins_path_segment];
+
+    % Update current and previous positions
+    prev_pos = current_pos;
+    current_pos = next_pos;
 
     loop_index = 2;
     loop_count = 1;
     %% Loop for total number of coordinates.
     while loop_index <= num_coordinates
-        % disp(loop_count);
         
         if isempty(unexplored_coordinate_points)
             break;
         end
 
         % Find the next position to move to
-        [minVal, next_pos_index] = calculate_closest_position(unexplored_coordinate_points, current_pos, wind_direction, true);
+        [~, next_pos_index] = calculate_closest_position(unexplored_coordinate_points, current_pos, wind_direction, true);
 
         next_pos = unexplored_coordinate_points(next_pos_index, :);
         
         next_pos_path_midpoint = calculate_midpoint(current_pos, next_pos);
 
-        [minVal, midpoint_index] = calculate_closest_position(unexplored_coordinate_points, next_pos_path_midpoint, wind_direction, false);
+        [~, midpoint_index] = calculate_closest_position(unexplored_coordinate_points, next_pos_path_midpoint, wind_direction, false);
         nearest_coord_midpoint = unexplored_coordinate_points(midpoint_index, :);
-        if nearest_coord_midpoint ~= next_pos
+        if ~isequal(next_pos, nearest_coord_midpoint)
             next_pos = nearest_coord_midpoint;
             next_pos_index = midpoint_index;
         end
@@ -56,8 +62,8 @@ function [coordinate_path, dubins_path_collection] = solveTravellingSalesmanProb
         % calculate_closest_position and adding the wind penalty onto the
         % dubins path cost value.
         % [dubins_path_segment, dubins_path_cost] = calculate_dubins_connection(prev_pos, current_pos, next_pos);
-        [dubins_path_segment, dubins_path_cost, new_next_pos] = calculate_optimised_dubins_connection(unexplored_coordinate_points, prev_pos, current_pos, next_pos);
-        
+        [dubins_path_segment, ~, new_next_pos] = calculate_optimised_dubins_connection(unexplored_coordinate_points, prev_pos, current_pos, next_pos);
+
         % update next position if the dubins path new position is different
         if ~isequal(next_pos, new_next_pos)
             next_pos = new_next_pos;
@@ -87,7 +93,9 @@ function [coordinate_path, dubins_path_collection] = solveTravellingSalesmanProb
 
         % plot(coordinate_path(1:loop_index,1), coordinate_path(1:loop_index,2), 'r--o', 'LineWidth', 1.5, 'MarkerSize', 5, 'DisplayName', 'Original Path');
     end
+    [dubins_path_segment, ~] = calculate_dubins_connection(prev_pos, current_pos, goal_pos);
     coordinate_path(num_coordinates+2, :) = goal_pos;
+    dubins_path_collection = [dubins_path_collection; dubins_path_segment];
 
 end
 
@@ -168,7 +176,7 @@ function [coordinate_path, unexplored_coordinate_points, reset_index] = optimisa
     current_coord_path = coordinate_path(1:index, :);
     reset_index = index;
 
-    [minVal, minIndex] = calculate_closest_position(current_coord_path, next_pos, wind_direction, true);
+    [~, minIndex] = calculate_closest_position(current_coord_path, next_pos, wind_direction, true);
     closest_coord = current_coord_path(minIndex, :);
 
     if closest_coord ~= current_pos
@@ -202,7 +210,7 @@ function [starting_coordinate, start_coord_index] = update_start_pos_with_wind_c
     projection = (Vx * wind_dx) + (Vy * wind_dy);
     
     % Calculate furthest point downwind
-    [downwind_weight, downwind_coord_index] = max(projection);
+    [~, downwind_coord_index] = max(projection);
 
     downwind_coord = coordinate_waypoints(downwind_coord_index, :);
 
@@ -217,12 +225,6 @@ function midpoint = calculate_midpoint(pos1, pos2)
     midpoint(2) = (pos1(2) + pos2(2)) / 2;
 end
 
-function bearing = calculate_bearing(pos1, pos2)
-    bearing = 0;
-
-    bearing = atan2(pos1(1) - pos2(1), pos1(2) - pos2(2));
-end
-
 function [departure_dir, arrival_dir] = calculate_directions(coord1, coord2)
     % Calculate direction vector between two coordiantes
     direction_vector = coord2 - coord1;
@@ -235,7 +237,7 @@ end
 
 function [path_segment, path_cost] = calculate_dubins_connection(previous_pos, current_pos, next_pos)
     dubConnObj = dubinsConnection;
-    dubConnObj.MinTurningRadius = 30;
+    dubConnObj.MinTurningRadius = 5;
 
     [~, prev_arrival_dir] = calculate_directions(previous_pos, current_pos);
     [~, next_arrival_dir] = calculate_directions(current_pos, next_pos);
@@ -251,7 +253,7 @@ end
 
 function [path_segment, path_cost, new_next_pos] = calculate_optimised_dubins_connection(coordinate_waypoints, previous_pos, current_pos, next_pos)
     dubConnObj = dubinsConnection;
-    dubConnObj.MinTurningRadius = 4;
+    dubConnObj.MinTurningRadius = 5;
 
     [next_pos_index, ~] = find(ismember(coordinate_waypoints, next_pos, 'rows'));
     possible_next_coordinates = get_image_area_coordinates(coordinate_waypoints, next_pos_index);

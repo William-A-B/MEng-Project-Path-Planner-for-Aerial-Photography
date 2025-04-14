@@ -87,7 +87,7 @@ start_pos = [-10, -10];
 goal_pos = [110, 110];
 
 %% Wind conditions
-wind_direction = -pi/4;
+wind_direction = -pi/2;
 
 
 %% Solve TSP
