@@ -1,6 +1,35 @@
 function [coordinate_path, dubins_path_collection] = solveTravellingSalesmanProblem(start_pos, goal_pos, coordinate_waypoints, wind_direction)
-%SOLVETRAVELLINGSALESMANPROBLEM Summary of this function goes here
-%   Detailed explanation goes here
+%SOLVETRAVELLINGSALESMANPROBLEM Solves a TSP problem with Dubins path constraints and wind-aware navigation.
+% 
+%   [coordinate_path, dubins_path_collection] = solveTravellingSalesmanProblem(start_pos, goal_pos, coordinate_waypoints, wind_direction)
+%
+%   This function approximates a solution to the Travelling Salesman Problem (TSP)
+%   using a nearest neighbour heuristic while accounting for wind direction
+%   and calculating Dubins path routes.
+%   Each waypoint is part of a 2x2 imaging grid (4 points per square), and
+%   only one point per grid is selected in the final path.
+%   
+%   Inputs:
+%       start_pos              - 1x2 vector representing the starting [x, y] position
+%       goal_pos               - 1x2 vector representing the goal [x, y] position
+%       coordinate_waypoints   - Nx2 matrix of waypoint coordinates, where N is a multiple of 4
+%                                (each group of 4 points corresponds to one imaging grid)
+%       wind_direction         - Scalar representing wind direction in radians (measured clockwise from the y-axis)
+%
+%   Outputs:
+%       coordinate_path        - Mx2 matrix of coordinates forming the TSP path, including start and goal
+%       dubins_path_collection - Collection of Dubins path segments connecting each pair of consecutive points in coordinate_path
+%
+%   Notes:
+%       - This algorithm includes wind-aware cost adjustments when choosing the
+%         next waypoint, penalizing travel aligned with the wind direction.
+%       - Uses Dubins paths (non-holonomic constraints) for connecting waypoints.
+%       - Each 2x2 imaging area contributes only one point to the final path.
+%
+%   Dependencies:
+%       - Requires Robotics System Toolbox for 'dubinsConnection'
+%       - Auxiliary functions: calculate_closest_position, remove_explored_coordinates,
+%         calculate_dubins_connection, calculate_optimised_dubins_connection, etc.
 
 
 % --------- TSP Solver using Nearest Neighbor Approximation --------------
@@ -41,11 +70,13 @@ function [coordinate_path, dubins_path_collection] = solveTravellingSalesmanProb
 
         % Find the next position to move to
         [~, next_pos_index] = calculate_closest_position(unexplored_coordinate_points, current_pos, wind_direction, true);
-
         next_pos = unexplored_coordinate_points(next_pos_index, :);
-        
+        % Calculate the midpoint between the current coordinate and next
+        % coordinate
         next_pos_path_midpoint = calculate_midpoint(current_pos, next_pos);
-
+        % Check if there is a closer coordinate to the midpoint than the
+        % current destination (next_pos), if there is re-route and update
+        % next_pos with the new closest position
         [~, midpoint_index] = calculate_closest_position(unexplored_coordinate_points, next_pos_path_midpoint, wind_direction, false);
         nearest_coord_midpoint = unexplored_coordinate_points(midpoint_index, :);
         if ~isequal(next_pos, nearest_coord_midpoint)
@@ -61,7 +92,6 @@ function [coordinate_path, dubins_path_collection] = solveTravellingSalesmanProb
         % can be implemented by doing something similar to
         % calculate_closest_position and adding the wind penalty onto the
         % dubins path cost value.
-        % [dubins_path_segment, dubins_path_cost] = calculate_dubins_connection(prev_pos, current_pos, next_pos);
         [dubins_path_segment, ~, new_next_pos] = calculate_optimised_dubins_connection(unexplored_coordinate_points, prev_pos, current_pos, next_pos);
 
         % update next position if the dubins path new position is different
@@ -93,6 +123,8 @@ function [coordinate_path, dubins_path_collection] = solveTravellingSalesmanProb
 
         % plot(coordinate_path(1:loop_index,1), coordinate_path(1:loop_index,2), 'r--o', 'LineWidth', 1.5, 'MarkerSize', 5, 'DisplayName', 'Original Path');
     end
+    % Explored all grid coordinate, calculate dubins path from final
+    % coordinate to the goal position.
     [dubins_path_segment, ~] = calculate_dubins_connection(prev_pos, current_pos, goal_pos);
     coordinate_path(num_coordinates+2, :) = goal_pos;
     dubins_path_collection = [dubins_path_collection; dubins_path_segment];
@@ -100,6 +132,8 @@ function [coordinate_path, dubins_path_collection] = solveTravellingSalesmanProb
 end
 
 function unexplored_coordinate_points = remove_explored_coordinates(unexplored_coordinate_points, minIndex)
+    %REMOVE_EXPLORED_COORDINATES Removes all 4 points of a selected 2x2 grid
+    % from the list of unexplored coordinates based on the selected index.
     square_alignment = mod(minIndex, 4);
     switch square_alignment
         case 0
@@ -116,6 +150,8 @@ function unexplored_coordinate_points = remove_explored_coordinates(unexplored_c
 end
 
 function imaging_area_coordinates = get_image_area_coordinates(coordinate_waypoints, index)
+    %GET_IMAGE_AREA_COORDINATES Retrieves all 4 points of the 2x2 imaging grid 
+    % associated with a given index from the full coordinate list.
     square_alignment = mod(index, 4);
     switch square_alignment
         case 0
@@ -132,6 +168,8 @@ function imaging_area_coordinates = get_image_area_coordinates(coordinate_waypoi
 end
 
 function unexplored_coordinate_points = reinsert_coordinates(unexplored_coordinate_points, coordinate_waypoints, index)
+    %REINSERT_COORDINATES Reinserts a 2x2 grid's 4 coordinates back into the 
+    % unexplored list, useful for heuristic re-planning.
     square_alignment = mod(index, 4);
     switch square_alignment
         case 0
@@ -148,6 +186,8 @@ function unexplored_coordinate_points = reinsert_coordinates(unexplored_coordina
 end
 
 function [minVal, minIndex] = calculate_closest_position(coordinate_points, current_pos, wind_direction, apply_wind_compensation)
+    %CALCULATE_CLOSEST_POSITION Finds the nearest coordinate considering both 
+    % Euclidean distance and wind influence. Returns index and adjusted cost.
 
     % Calculate distance to all coordinates from current position
     distances = sqrt((coordinate_points(:, 1) - current_pos(1)).^2 + (coordinate_points(:, 2) - current_pos(2)).^2);
@@ -173,6 +213,8 @@ function [minVal, minIndex] = calculate_closest_position(coordinate_points, curr
 end
 
 function [coordinate_path, unexplored_coordinate_points, reset_index] = optimisation_heuristic(current_pos, next_pos, coordinate_path, index, coordinate_waypoints, unexplored_coordinate_points, wind_direction)
+    %OPTIMISATION_HEURISTIC Attempts to optimize the path by checking if the 
+    % current step can connect back to earlier waypoints for improved efficiency.
     current_coord_path = coordinate_path(1:index, :);
     reset_index = index;
 
@@ -197,6 +239,9 @@ end
 
 
 function [starting_coordinate, start_coord_index] = update_start_pos_with_wind_compensation(start_pos, wind_direction, coordinate_waypoints)
+    %UPDATE_START_POS_WITH_WIND_COMPENSATION Picks the furtest position
+    % downwind from the actual start position to minimize headwind movement.
+
     % Calculate wind vector
     wind_dx = sin(wind_direction);
     wind_dy = cos(wind_direction);
@@ -220,12 +265,16 @@ function [starting_coordinate, start_coord_index] = update_start_pos_with_wind_c
 end
 
 function midpoint = calculate_midpoint(pos1, pos2)
+    %CALCULATE_MIDPOINT Computes the midpoint between two 2D coordinates.
     midpoint = [0, 0];
     midpoint(1) = (pos1(1) + pos2(1)) / 2;
     midpoint(2) = (pos1(2) + pos2(2)) / 2;
 end
 
 function [departure_dir, arrival_dir] = calculate_directions(coord1, coord2)
+    %CALCULATE_DIRECTIONS Computes the heading angles between two positions 
+    % for use in defining Dubins path entry and exit directions.
+
     % Calculate direction vector between two coordiantes
     direction_vector = coord2 - coord1;
     
@@ -236,6 +285,8 @@ function [departure_dir, arrival_dir] = calculate_directions(coord1, coord2)
 end
 
 function [path_segment, path_cost] = calculate_dubins_connection(previous_pos, current_pos, next_pos)
+    %CALCULATE_DUBINS_CONNECTION Generates a Dubins path segment between two 
+    % poses, considering turning radius and heading angles.
     dubConnObj = dubinsConnection;
     dubConnObj.MinTurningRadius = 5;
 
@@ -252,17 +303,25 @@ function [path_segment, path_cost] = calculate_dubins_connection(previous_pos, c
 end
 
 function [path_segment, path_cost, new_next_pos] = calculate_optimised_dubins_connection(coordinate_waypoints, previous_pos, current_pos, next_pos)
+    %CALCULATE_OPTIMISED_DUBINS_CONNECTION Evaluates all 4 candidates in the 
+    % target 2x2 imaging grid and chooses the one yielding the lowest Dubins cost.
     dubConnObj = dubinsConnection;
     dubConnObj.MinTurningRadius = 5;
-
+    
+    % Find index of next_pos coordinate and retrieve the 4 imaging
+    % candidates for the 2x2 grid
     [next_pos_index, ~] = find(ismember(coordinate_waypoints, next_pos, 'rows'));
     possible_next_coordinates = get_image_area_coordinates(coordinate_waypoints, next_pos_index);
-
+    
+    % Calculate the arrival direction of the previous path to the current
+    % position.
     [~, prev_arrival_dir] = calculate_directions(previous_pos, current_pos);
 
     path_cost = inf;
     new_next_pos = 0;
-
+    
+    % Loop over all imaging 2x2 grid coordinates, and find the path to the
+    % coordinate with the shortest cost
     for i = 1:size(possible_next_coordinates, 1)
         current_next_pos = possible_next_coordinates(i, :);
         [~, next_arrival_dir] = calculate_directions(current_pos, current_next_pos);

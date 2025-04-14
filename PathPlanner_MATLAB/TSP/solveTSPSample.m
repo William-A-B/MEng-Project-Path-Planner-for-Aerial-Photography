@@ -87,7 +87,7 @@ start_pos = [-10, -10];
 goal_pos = [110, 110];
 
 %% Wind conditions
-wind_direction = -pi/2;
+wind_direction = pi/2;
 
 
 %% Solve TSP
@@ -96,58 +96,7 @@ wind_direction = -pi/2;
 % [coordinate_path, path_cost] = tspSolver.solveTravellingSalesmanProblem(tspSolver);
 
 [coordinate_path, dubins_path_collection] = solveTravellingSalesmanProblem(start_pos, goal_pos, square_corners, wind_direction);
-
-
-%% Display results
-figure;
-hold on;
-grid on;
-
-for i = 1:size(dubins_path_collection, 1)
-    % show(paths{i});
-    disp(i)
-
-    % Evaluate pathSegObj to get path states (poses)
-    interpStates = interpolate(dubins_path_collection{i}, linspace(0, dubins_path_collection{i}.Length, 50));
-    
-    % Plot only the path line (fast)
-    plot(interpStates(:,1), interpStates(:,2), 'b-', 'LineWidth', 1.5, 'HandleVisibility', 'off');
-end
-
-% Plot wind direction
-% Compute wind vector components
-wind_x = sin(wind_direction); 
-wind_y = cos(wind_direction);
-
-% Define arrow starting position (e.g., near the start position)
-arrow_start = start_pos - [wind_x, wind_y] * 2; % Shift back slightly for clarity
-
-% Plot the wind direction as an arrow
-% quiver(arrow_start(1), arrow_start(2), wind_x, wind_y, range(polygon_vertices(:, 1))/5, 'k', 'LineWidth', 2, 'MaxHeadSize', 20, 'DisplayName', 'Wind Direction');
-quiver(arrow_start(1), arrow_start(2), wind_x, wind_y, 40, 'k', 'LineWidth', 2, 'MaxHeadSize', 20, 'DisplayName', 'Wind Direction');
-
-
-% Plot start and goal positions
-plot(start_pos(1), start_pos(2), 'go', 'MarkerSize', 10, 'MarkerFaceColor', 'g', 'DisplayName', 'Start Position'); % Start
-plot(goal_pos(1), goal_pos(2), 'ro', 'MarkerSize', 10, 'MarkerFaceColor', 'r', 'DisplayName', 'Goal Position'); % Goal
-
-% Draw squares at each center position in red
-num_points = size(square_centres, 1);
-for i = 1:num_points
-    % Define bottom-left corner of square
-    bottom_left = square_centres(i,:) - square_size / 4;
-    % Draw red square
-    rectangle('Position', [bottom_left, square_size/2], 'EdgeColor', 'c', 'LineWidth', 1);
-end
-
-% Plot cuboid centres
-scatter(square_corners(:,1), square_corners(:,2), 20, 'filled', 'b', 'DisplayName', 'Imaging Positions');
-
-
-plot(coordinate_path(:,1), coordinate_path(:,2), 'r--o', 'LineWidth', 1.5, 'MarkerSize', 5, 'DisplayName', 'Original Path');
-
-% Add legend to clarify the wind direction
-legend('show');
+display_results(start_pos, goal_pos, wind_direction, square_size, square_centres, square_corners, coordinate_path, dubins_path_collection);
 
 %% HELPER FUNCTIONS
 
@@ -168,17 +117,55 @@ function [square_corners] = calculate_square_corner_coordinates(square_centres, 
     end
 end
 
-function [square_corner_coords] = new_calculate_square_corner_coordinates(square_centres, square_size)
-    % Calculate square corners from each central square position 
-    num_squares = size(square_centres, 1);
-    square_radius = square_size(1) / 4;
-    square_corner_coords = [];
-    for i = 1:num_squares
-        centre = square_centres(i, :);
-        corners = [centre(1) - square_radius, centre(2) + square_radius;
-                   centre(1) + square_radius, centre(2) + square_radius;
-                   centre(1) + square_radius, centre(2) - square_radius;
-                   centre(1) - square_radius, centre(2) - square_radius];
-        square_corner_coords{i} = corners;
+function display_results(start_pos, goal_pos, wind_direction, square_size, square_centres, square_corners, coordinate_path, dubins_paths)
+    % Display results
+    figure;
+    hold on;
+    grid on;
+    
+    for i = 1:size(dubins_paths, 1)
+        % show(paths{i});
+        disp(i)
+    
+        % Evaluate pathSegObj to get path states (poses)
+        interpStates = interpolate(dubins_paths{i}, linspace(0, dubins_paths{i}.Length, 50));
+        
+        % Plot only the path line (fast)
+        plot(interpStates(:,1), interpStates(:,2), 'b-', 'LineWidth', 1.5, 'HandleVisibility', 'off');
     end
+    
+    % Plot wind direction
+    % Compute wind vector components
+    wind_x = sin(wind_direction); 
+    wind_y = cos(wind_direction);
+    
+    % Define arrow starting position (e.g., near the start position)
+    arrow_start = start_pos - [wind_x, wind_y] * 2; % Shift back slightly for clarity
+    
+    % Plot the wind direction as an arrow
+    % quiver(arrow_start(1), arrow_start(2), wind_x, wind_y, range(polygon_vertices(:, 1))/5, 'k', 'LineWidth', 2, 'MaxHeadSize', 20, 'DisplayName', 'Wind Direction');
+    quiver(arrow_start(1), arrow_start(2), wind_x, wind_y, 40, 'k', 'LineWidth', 2, 'MaxHeadSize', 20, 'DisplayName', 'Wind Direction');
+    
+    
+    % Plot start and goal positions
+    plot(start_pos(1), start_pos(2), 'go', 'MarkerSize', 10, 'MarkerFaceColor', 'g', 'DisplayName', 'Start Position'); % Start
+    plot(goal_pos(1), goal_pos(2), 'ro', 'MarkerSize', 10, 'MarkerFaceColor', 'r', 'DisplayName', 'Goal Position'); % Goal
+    
+    % Draw squares at each center position in red
+    num_points = size(square_centres, 1);
+    for i = 1:num_points
+        % Define bottom-left corner of square
+        bottom_left = square_centres(i,:) - square_size / 4;
+        % Draw red square
+        rectangle('Position', [bottom_left, square_size/2], 'EdgeColor', 'c', 'LineWidth', 1);
+    end
+    
+    % Plot cuboid centres
+    scatter(square_corners(:,1), square_corners(:,2), 20, 'filled', 'b', 'DisplayName', 'Imaging Positions');
+    
+    
+    plot(coordinate_path(:,1), coordinate_path(:,2), 'r--o', 'LineWidth', 1.5, 'MarkerSize', 5, 'DisplayName', 'Original Path');
+    
+    % Add legend to clarify the wind direction
+    legend('show');
 end
