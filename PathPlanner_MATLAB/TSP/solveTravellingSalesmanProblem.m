@@ -102,13 +102,6 @@ function [coordinate_path, dubins_path_collection] = solveTravellingSalesmanProb
         
         % Remove the found coordinate, so it's not explored again
         unexplored_coordinate_points = remove_explored_coordinates(unexplored_coordinate_points, next_pos_index);
-
-        % Heuristics optimisation, old, currently not working, look into
-        % fixing
-        % if size(coordinate_path(1:loop_index, :), 1) > 1
-        %     [coordinate_path, unexplored_coordinate_points, reset_index] = optimisation_heuristic(current_pos, next_pos, coordinate_path, loop_index, coordinate_waypoints, unexplored_coordinate_points, wind_direction);
-        %     loop_index = reset_index;
-        % end
     
         % Update the coordinate path with the next position
         coordinate_path(loop_index+1, :) = next_pos;
@@ -211,32 +204,6 @@ function [minVal, minIndex] = calculate_closest_position(coordinate_points, curr
     [minVal, minIndex] = min(adjusted_cost);
 
 end
-
-function [coordinate_path, unexplored_coordinate_points, reset_index] = optimisation_heuristic(current_pos, next_pos, coordinate_path, index, coordinate_waypoints, unexplored_coordinate_points, wind_direction)
-    %OPTIMISATION_HEURISTIC Attempts to optimize the path by checking if the 
-    % current step can connect back to earlier waypoints for improved efficiency.
-    current_coord_path = coordinate_path(1:index, :);
-    reset_index = index;
-
-    [~, minIndex] = calculate_closest_position(current_coord_path, next_pos, wind_direction, true);
-    closest_coord = current_coord_path(minIndex, :);
-
-    if closest_coord ~= current_pos
-        % Remove minIndex to end index of coordinate_path (retracing steps)
-        coordinate_path(minIndex+1:end, :) = 0;
-      
-        % Reinsert minIndex to end index of coordinate_path into
-        % unexplored_coordinate_points
-        for i = minIndex+1:index
-            unexplored_coordinate_points = reinsert_coordinates(unexplored_coordinate_points, coordinate_waypoints, i);
-        end
-
-        % Update coordinate_path with the new order
-        reset_index = minIndex;
-    end
-    
-end
-
 
 function [starting_coordinate, start_coord_index] = update_start_pos_with_wind_compensation(start_pos, wind_direction, coordinate_waypoints)
     %UPDATE_START_POS_WITH_WIND_COMPENSATION Picks the furtest position
