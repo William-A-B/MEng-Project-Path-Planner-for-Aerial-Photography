@@ -34,16 +34,21 @@ function [coordinate_path, dubins_path_collection] = solveTravellingSalesmanProb
 
 % --------- TSP Solver using Nearest Neighbor Approximation --------------
 
+    coordinate_waypoints_3d = setup_elevation_data(coordinate_waypoints)
+    start_pos = [start_pos, 0];
+    goal_pos = [goal_pos, 0];
+
+
     dubins_path_collection = [];
 
     % Number of coordinates to explore
     num_coordinates = size(coordinate_waypoints, 1)/4;
-    unexplored_coordinate_points = coordinate_waypoints;
+    unexplored_coordinate_points = coordinate_waypoints_3d;
     % Initialise path variable
-    coordinate_path = zeros(num_coordinates+2, 2);
+    coordinate_path = zeros(num_coordinates+2, 3);
     coordinate_path(1, :) = start_pos;
 
-    [starting_coordinate, start_coord_index] = update_start_pos_with_wind_compensation(start_pos, wind_direction, coordinate_waypoints);
+    [starting_coordinate, start_coord_index] = update_start_pos_with_wind_compensation(start_pos, wind_direction, coordinate_waypoints_3d);
 
     prev_pos = start_pos;
     current_pos = start_pos;
@@ -69,7 +74,9 @@ function [coordinate_path, dubins_path_collection] = solveTravellingSalesmanProb
         end
 
         % Find the next position to move to
-        [~, next_pos_index] = calculate_closest_position(unexplored_coordinate_points, current_pos, wind_direction, true);
+        % [~, next_pos_index] = calculate_closest_position(unexplored_coordinate_points, current_pos, wind_direction, true);
+        [~, next_pos_index] = calculate_closest_position_3d(unexplored_coordinate_points, current_pos, wind_direction, true);
+
         next_pos = unexplored_coordinate_points(next_pos_index, :);
         % Calculate the midpoint between the current coordinate and next
         % coordinate
@@ -77,7 +84,7 @@ function [coordinate_path, dubins_path_collection] = solveTravellingSalesmanProb
         % Check if there is a closer coordinate to the midpoint than the
         % current destination (next_pos), if there is re-route and update
         % next_pos with the new closest position
-        [~, midpoint_index] = calculate_closest_position(unexplored_coordinate_points, next_pos_path_midpoint, wind_direction, false);
+        [~, midpoint_index] = calculate_closest_position_3d(unexplored_coordinate_points, next_pos_path_midpoint, wind_direction, false);
         nearest_coord_midpoint = unexplored_coordinate_points(midpoint_index, :);
         if ~isequal(next_pos, nearest_coord_midpoint)
             next_pos = nearest_coord_midpoint;
@@ -202,7 +209,57 @@ function [minVal, minIndex] = calculate_closest_position(coordinate_points, curr
     end
     % Select the best next position considering wind influence
     [minVal, minIndex] = min(adjusted_cost);
+end
 
+function [minVal, minIndex] = calculate_closest_position_3d(coordinate_points, current_pos, wind_direction, apply_wind_compensation)
+    %CALCULATE_CLOSEST_POSITION Finds the nearest coordinate considering both 
+    % Euclidean distance and wind influence. Returns index and adjusted cost.
+
+    % Extract the 3rd column (elevation) from the coordinate points
+    elevations = coordinate_points(:, 3);
+        
+    % Calculate distance to all coordinates from current position
+    distances = sqrt((coordinate_points(:, 1) - current_pos(1)).^2 + (coordinate_points(:, 2) - current_pos(2)).^2);
+
+    % Compute angle of movement to each candidate point
+    movement_angles = atan2(coordinate_points(:,1) - current_pos(1), coordinate_points(:,2) - current_pos(2));
+    
+    % Compute absolute angular difference to wind direction
+    angle_diff = abs(wrapToPi(movement_angles - wind_direction));
+    
+    % Weight function: penalize movement along wind, reward perpendicular movement
+    wind_penalty = abs(cos(angle_diff)); % Penalizes alignment with wind
+    
+    % Compute adjusted cost
+    if apply_wind_compensation
+        adjusted_cost = distances .* (1 + (wind_penalty*6));
+    else
+        adjusted_cost = distances .* (1 + (wind_penalty*4));
+    end
+    
+    % Take top 10 smallest distance and find the one with lowest change in
+    % altitude
+    % Get the top 10 smallest distances and their corresponding indices
+    [~, sorted_indices] = sort(adjusted_cost);  % Sort the distances in ascending order
+    if size(sorted_indices, 1) < 8
+        closest_indices = sorted_indices(1:end);    % Get indices of top smallest distances
+    else
+        closest_indices = sorted_indices(1:8);    % Get indices of top 8 smallest distances
+    end
+
+    % Extract the top 10 closest coordinates and elevations
+    closest_coords = coordinate_points(closest_indices, :);
+    closest_points_elevations = elevations(closest_indices);
+
+    % Calculate the change in elevation for each of the top 10 closest points
+    elevation_changes = abs(closest_points_elevations - current_pos(3));
+
+    % Find the index of the smallest elevation change among the top 10
+    [~, min_elevation_index] = min(elevation_changes);
+
+    % Select the coordinate with the smallest elevation change
+    minIndex = closest_indices(min_elevation_index);
+    minVal = adjusted_cost(minIndex);  % Return the adjusted cost for that coordinate
 end
 
 function [starting_coordinate, start_coord_index] = update_start_pos_with_wind_compensation(start_pos, wind_direction, coordinate_waypoints)
@@ -233,9 +290,10 @@ end
 
 function midpoint = calculate_midpoint(pos1, pos2)
     %CALCULATE_MIDPOINT Computes the midpoint between two 2D coordinates.
-    midpoint = [0, 0];
+    midpoint = [0, 0, 0];
     midpoint(1) = (pos1(1) + pos2(1)) / 2;
     midpoint(2) = (pos1(2) + pos2(2)) / 2;
+    midpoint(3) = (pos1(3) + pos2(3)) / 2;
 end
 
 function [departure_dir, arrival_dir] = calculate_directions(coord1, coord2)
@@ -260,8 +318,8 @@ function [path_segment, path_cost] = calculate_dubins_connection(previous_pos, c
     [~, prev_arrival_dir] = calculate_directions(previous_pos, current_pos);
     [~, next_arrival_dir] = calculate_directions(current_pos, next_pos);
 
-    start_pose = [current_pos, prev_arrival_dir];
-    goal_pose = [next_pos, next_arrival_dir];
+    start_pose = [current_pos(:, 1:2), prev_arrival_dir];
+    goal_pose = [next_pos(:, 1:2), next_arrival_dir];
 
     [pathSegObj, pathCosts] = connect(dubConnObj, start_pose, goal_pose);
     
@@ -293,8 +351,8 @@ function [path_segment, path_cost, new_next_pos] = calculate_optimised_dubins_co
         current_next_pos = possible_next_coordinates(i, :);
         [~, next_arrival_dir] = calculate_directions(current_pos, current_next_pos);
 
-        start_pose = [current_pos, prev_arrival_dir];
-        goal_pose = [current_next_pos, next_arrival_dir];
+        start_pose = [current_pos(:, 1:2), prev_arrival_dir];
+        goal_pose = [current_next_pos(:, 1:2), next_arrival_dir];
 
         [pathSegObj, current_path_cost] = connect(dubConnObj, start_pose, goal_pose);
 
@@ -304,4 +362,15 @@ function [path_segment, path_cost, new_next_pos] = calculate_optimised_dubins_co
             new_next_pos = current_next_pos;
         end
     end
+end
+
+function coordinate_waypoints_3d = setup_elevation_data(coordinate_waypoints_2d)
+    min_height = 0;
+    max_height = 50;
+    num_points = size(coordinate_waypoints_2d, 1);
+    % Create linearly spaced elevations from min to max
+    gradual_heights = floor(linspace(min_height, max_height, num_points)');
+
+    % Combine 2D coordinates with the gradual elevation
+    coordinate_waypoints_3d = [coordinate_waypoints_2d, gradual_heights];
 end

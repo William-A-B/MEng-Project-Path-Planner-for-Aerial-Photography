@@ -87,7 +87,7 @@ start_pos = [-10, -10];
 goal_pos = [110, 110];
 
 %% Wind conditions
-wind_direction = pi/2;
+wind_direction = -pi/2;
 
 
 %% Solve TSP
@@ -125,11 +125,9 @@ function display_results(start_pos, goal_pos, wind_direction, square_size, squar
     
     for i = 1:size(dubins_paths, 1)
         % show(paths{i});
-        disp(i)
-    
         % Evaluate pathSegObj to get path states (poses)
         interpStates = interpolate(dubins_paths{i}, linspace(0, dubins_paths{i}.Length, 50));
-        
+
         % Plot only the path line (fast)
         plot(interpStates(:,1), interpStates(:,2), 'b-', 'LineWidth', 1.5, 'HandleVisibility', 'off');
     end
