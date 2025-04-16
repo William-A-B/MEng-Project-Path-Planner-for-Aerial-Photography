@@ -11,15 +11,6 @@ function [coordinate_path, dubins_path_waypoints] = setupTSP(polygon_vertices)
     
     polygon_vertices_utm = [utm_polygon_vertices, polygon_vertices(:, 3)];
     
-    % Plot the polygon
-    figure;
-    plot(polygon_vertices_utm(:,2), polygon_vertices_utm(:,1), 'b-o', 'LineWidth', 2);
-    xlabel('Longitude');
-    ylabel('Latitude');
-    title('Defined Surveillance Area');
-    grid on;
-    axis equal;
-    
     % Define grid resolution (adjust as needed)
     num_divisions_x = 7;  % Number of divisions along latitude
     num_divisions_y = 7;  % Number of divisions along longitude
@@ -40,11 +31,8 @@ function [coordinate_path, dubins_path_waypoints] = setupTSP(polygon_vertices)
     
     % Convert to list of waypoints
     grid_waypoints = [lat_grid(:), lon_grid(:), alt_grid(:)];
-    
-    % Plot the grid points
-    hold on;
-    scatter(grid_waypoints(:,2), grid_waypoints(:,1), 'r*');
-    legend('Polygon Boundary', 'Grid Points');
+
+    % display_initial_coordinate_grid(polygon_vertices_utm, grid_waypoints);
     
     square_size = [range(polygon_vertices_utm(:, 1))/(num_divisions_x), range(polygon_vertices_utm(:, 2))/(num_divisions_y)]; 
     square_centres = grid_waypoints;
@@ -60,7 +48,7 @@ function [coordinate_path, dubins_path_waypoints] = setupTSP(polygon_vertices)
     
     %% Solve TSP
     [coordinate_path, dubins_path_collection] = solveTravellingSalesmanProblem(start_pos, goal_pos, square_corners, wind_direction);
-    display_results(start_pos, goal_pos, wind_direction, square_size(:, 1:2), square_centres, square_corners, coordinate_path, dubins_path_collection);
+    % display_results(start_pos, goal_pos, wind_direction, square_size(:, 1:2), square_centres, square_corners, coordinate_path, dubins_path_collection);
     
     dubins_path_waypoints = [];
 
@@ -72,8 +60,10 @@ function [coordinate_path, dubins_path_waypoints] = setupTSP(polygon_vertices)
     
     % Update the utmzone array to equal the size of the full list of
     % coordinates
-    utmzone = 
-    utm2deg(coordinate_path(:, 1), coordinate_path(:, 2), utmzone);
+    num_coordinate_points = size(coordinate_path, 1);
+    utmzone_updated = repmat(utmzone(1, :), num_coordinate_points, 1);
+    [resulting_lat_coords, resulting_lon_coords] = utm2deg(coordinate_path(:, 1), coordinate_path(:, 2), utmzone_updated);
+    coordinate_path = [resulting_lat_coords, resulting_lon_coords];
     
 end
 
@@ -145,4 +135,20 @@ function display_results(start_pos, goal_pos, wind_direction, square_size, squar
     
     % Add legend to clarify the wind direction
     legend('show');
+end
+
+function display_initial_coordinate_grid(polygon_vertices_utm, grid_waypoints)
+    % Plot the polygon
+    figure;
+    plot(polygon_vertices_utm(:,2), polygon_vertices_utm(:,1), 'b-o', 'LineWidth', 2);
+    xlabel('Longitude');
+    ylabel('Latitude');
+    title('Defined Surveillance Area');
+    grid on;
+    axis equal;
+
+    % Plot the grid points
+    hold on;
+    scatter(grid_waypoints(:,2), grid_waypoints(:,1), 'r*');
+    legend('Polygon Boundary', 'Grid Points');
 end

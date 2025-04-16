@@ -1,0 +1,13 @@
+Metadata-Version: 2.4
+Name: TSPSolver-R2024b
+Version: 24.2
+Summary: A Python interface to TSPSolver
+Home-page: https://www.mathworks.com/
+Author: MathWorks
+Platform: Linux
+Platform: Windows
+Platform: macOS
+Dynamic: author
+Dynamic: home-page
+Dynamic: platform
+Dynamic: summary
