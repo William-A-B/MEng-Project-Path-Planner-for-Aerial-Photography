@@ -34,24 +34,30 @@ function [coordinate_path, dubins_path_collection] = solveTravellingSalesmanProb
 
 % --------- TSP Solver using Nearest Neighbor Approximation --------------
 
-    coordinate_waypoints_3d = setup_elevation_data(coordinate_waypoints)
-    start_pos = [start_pos, 0];
-    goal_pos = [goal_pos, 0];
+    % coordinate_waypoints_3d = setup_elevation_data(coordinate_waypoints);
+    % start_pos = [start_pos, 0];
+    % goal_pos = [goal_pos, 0];
+
+    num_2d_coordinates = size(coordinate_waypoints, 1) / 3;
+
+    start_pos_2d = start_pos(1, 1:2);
+    goal_pos_2d = goal_pos(1, 1:2);
+    coordinate_waypoints_2d = coordinate_waypoints(1:num_2d_coordinates, 1:2);
 
 
     dubins_path_collection = [];
 
     % Number of coordinates to explore
-    num_coordinates = size(coordinate_waypoints, 1)/4;
-    unexplored_coordinate_points = coordinate_waypoints_3d;
+    num_imaging_locations = size(coordinate_waypoints_2d, 1)/4;
+    unexplored_coordinate_points = coordinate_waypoints_2d;
     % Initialise path variable
-    coordinate_path = zeros(num_coordinates+2, 3);
-    coordinate_path(1, :) = start_pos;
+    coordinate_path = zeros(num_imaging_locations+2, 2);
+    coordinate_path(1, :) = start_pos_2d;
 
-    [starting_coordinate, start_coord_index] = update_start_pos_with_wind_compensation(start_pos, wind_direction, coordinate_waypoints_3d);
+    [starting_coordinate, start_coord_index] = update_start_pos_with_wind_compensation(start_pos_2d, wind_direction, coordinate_waypoints_2d);
 
-    prev_pos = start_pos;
-    current_pos = start_pos;
+    prev_pos = start_pos_2d;
+    current_pos = start_pos_2d;
     next_pos = starting_coordinate;
 
     [dubins_path_segment, ~] = calculate_dubins_connection(prev_pos, current_pos, next_pos);
@@ -67,15 +73,15 @@ function [coordinate_path, dubins_path_collection] = solveTravellingSalesmanProb
     loop_index = 2;
     loop_count = 1;
     %% Loop for total number of coordinates.
-    while loop_index <= num_coordinates
+    while loop_index <= num_imaging_locations
         
         if isempty(unexplored_coordinate_points)
             break;
         end
 
         % Find the next position to move to
-        % [~, next_pos_index] = calculate_closest_position(unexplored_coordinate_points, current_pos, wind_direction, true);
-        [~, next_pos_index] = calculate_closest_position_3d(unexplored_coordinate_points, current_pos, wind_direction, true);
+        [~, next_pos_index] = calculate_closest_position(unexplored_coordinate_points, current_pos, wind_direction, true);
+        % [~, next_pos_index] = calculate_closest_position_3d(unexplored_coordinate_points, current_pos, wind_direction, true);
 
         next_pos = unexplored_coordinate_points(next_pos_index, :);
         % Calculate the midpoint between the current coordinate and next
@@ -84,7 +90,7 @@ function [coordinate_path, dubins_path_collection] = solveTravellingSalesmanProb
         % Check if there is a closer coordinate to the midpoint than the
         % current destination (next_pos), if there is re-route and update
         % next_pos with the new closest position
-        [~, midpoint_index] = calculate_closest_position_3d(unexplored_coordinate_points, next_pos_path_midpoint, wind_direction, false);
+        [~, midpoint_index] = calculate_closest_position(unexplored_coordinate_points, next_pos_path_midpoint, wind_direction, false);
         nearest_coord_midpoint = unexplored_coordinate_points(midpoint_index, :);
         if ~isequal(next_pos, nearest_coord_midpoint)
             next_pos = nearest_coord_midpoint;
@@ -125,8 +131,8 @@ function [coordinate_path, dubins_path_collection] = solveTravellingSalesmanProb
     end
     % Explored all grid coordinate, calculate dubins path from final
     % coordinate to the goal position.
-    [dubins_path_segment, ~] = calculate_dubins_connection(prev_pos, current_pos, goal_pos);
-    coordinate_path(num_coordinates+2, :) = goal_pos;
+    [dubins_path_segment, ~] = calculate_dubins_connection(prev_pos, current_pos, goal_pos_2d);
+    coordinate_path(num_imaging_locations+2, :) = goal_pos_2d;
     dubins_path_collection = [dubins_path_collection; dubins_path_segment];
 
 end
@@ -290,10 +296,16 @@ end
 
 function midpoint = calculate_midpoint(pos1, pos2)
     %CALCULATE_MIDPOINT Computes the midpoint between two 2D coordinates.
-    midpoint = [0, 0, 0];
-    midpoint(1) = (pos1(1) + pos2(1)) / 2;
-    midpoint(2) = (pos1(2) + pos2(2)) / 2;
-    midpoint(3) = (pos1(3) + pos2(3)) / 2;
+    if size(pos1, 2) > 2
+        midpoint = [0, 0, 0];
+        midpoint(1) = (pos1(1) + pos2(1)) / 2;
+        midpoint(2) = (pos1(2) + pos2(2)) / 2;
+        midpoint(3) = (pos1(3) + pos2(3)) / 2;
+    else
+        midpoint = [0, 0];
+        midpoint(1) = (pos1(1) + pos2(1)) / 2;
+        midpoint(2) = (pos1(2) + pos2(2)) / 2;
+    end
 end
 
 function [departure_dir, arrival_dir] = calculate_directions(coord1, coord2)
@@ -313,7 +325,7 @@ function [path_segment, path_cost] = calculate_dubins_connection(previous_pos, c
     %CALCULATE_DUBINS_CONNECTION Generates a Dubins path segment between two 
     % poses, considering turning radius and heading angles.
     dubConnObj = dubinsConnection;
-    dubConnObj.MinTurningRadius = 5;
+    dubConnObj.MinTurningRadius = 30;
 
     [~, prev_arrival_dir] = calculate_directions(previous_pos, current_pos);
     [~, next_arrival_dir] = calculate_directions(current_pos, next_pos);
@@ -331,7 +343,7 @@ function [path_segment, path_cost, new_next_pos] = calculate_optimised_dubins_co
     %CALCULATE_OPTIMISED_DUBINS_CONNECTION Evaluates all 4 candidates in the 
     % target 2x2 imaging grid and chooses the one yielding the lowest Dubins cost.
     dubConnObj = dubinsConnection;
-    dubConnObj.MinTurningRadius = 5;
+    dubConnObj.MinTurningRadius = 30;
     
     % Find index of next_pos coordinate and retrieve the 4 imaging
     % candidates for the 2x2 grid
