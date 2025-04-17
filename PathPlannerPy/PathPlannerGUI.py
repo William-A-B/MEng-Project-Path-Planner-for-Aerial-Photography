@@ -12,13 +12,14 @@ from geopy.geocoders import Nominatim
 import PathPlannerDataStorage as ppds
 
 from PathPlannerMATLAB2D import PathPlanner2D
+from TSPSolver import TSPSolver
 import matlab
 
 import srtm
 
 
 class PathPlannerGUI:
-    def __init__(self, root, data_handler):
+    def __init__(self, root, tsp_solver, data_handler):
         # Initialise GUI
         self.root = root
         self.root.title("Path Planner Application")
@@ -32,6 +33,9 @@ class PathPlannerGUI:
 
         # Buttons for Line/Polygon Mode
         self.mode = "none"  # Default mode is none
+
+        # Object for calling TSP Solver
+        self.my_tsp_solver = tsp_solver
 
         # Data Storage
         self.data_handler = data_handler
@@ -80,6 +84,11 @@ class PathPlannerGUI:
         self.waypoint_message_var = tk.StringVar()
         self.setup_waypoint_marker_coordinate_output()
 
+        self.elevation_profile_frame = None
+        self.elevation_title_label = None
+        self.setup_elevation_profile()
+
+        self.algorithm_modes_frame = None
         self.algorithm_title_label = None
         self.calculate_shortest_path_button = None
         self.choose_waypoints_button = None
@@ -124,6 +133,8 @@ class PathPlannerGUI:
         # Right Bottom Frame (50% Height)
         self.right_bottom_frame = ttk.Frame(self.main_frame, padding=5, relief=tk.RIDGE, borderwidth=2)
         self.right_bottom_frame.grid(row=1, column=1, sticky="nsew")
+        self.right_bottom_frame.rowconfigure(0, weight=3)
+        self.right_bottom_frame.rowconfigure(1, weight=2)
 
     def setup_map_widget(self):
         # Add a map widget inside the top-right frame
@@ -222,24 +233,39 @@ class PathPlannerGUI:
     def update_message_box_width(self, event):
         self.waypoint_marker_messagebox.config(width=event.width)
 
+    def setup_elevation_profile(self):
+        self.elevation_profile_frame = ttk.Frame(self.right_bottom_frame)
+        self.elevation_profile_frame.rowconfigure(0, weight=1)
+        self.elevation_profile_frame.columnconfigure(0, weight=1)
+        self.elevation_profile_frame.pack(pady=(0, 10), fill=tk.X)
+
+        self.elevation_title_label = ttk.Label(self.elevation_profile_frame, text="Elevation Profile",
+                                               font=("Arial", 12, "bold"))
+        self.elevation_title_label.pack(pady=(5, 5), anchor="w")
+
     def setup_algorithm_modes(self):
         self.calculate_shortest_path_button = None
         self.choose_waypoints_button = None
         self.plot_waypoints_button = None
 
-        self.algorithm_title_label = ttk.Label(self.right_bottom_frame, text="Algorithm Parameters",
+        self.algorithm_modes_frame = ttk.Frame(self.right_bottom_frame)
+        self.algorithm_modes_frame.rowconfigure(1, weight=1)
+        self.algorithm_modes_frame.columnconfigure(0, weight=1)
+        self.algorithm_modes_frame.pack(pady=(0, 10), fill=tk.X)
+
+        self.algorithm_title_label = ttk.Label(self.algorithm_modes_frame, text="Algorithm Parameters",
                                                font=("Arial", 12, "bold"))
         self.algorithm_title_label.pack(pady=(5, 5), anchor="w")
 
-        self.calculate_shortest_path_button = ttk.Button(self.right_bottom_frame, text="Calculate shortest path",
-                                                         command=self.test_PathPlanner2D)
+        self.calculate_shortest_path_button = ttk.Button(self.algorithm_modes_frame, text="Calculate shortest path",
+                                                         command=self.calculate_uav_flight_path)
         self.calculate_shortest_path_button.pack(side=tk.TOP, fill=tk.X, padx=5, pady=2)
 
-        self.choose_waypoints_button = ttk.Button(self.right_bottom_frame, text="Import existing waypoints",
+        self.choose_waypoints_button = ttk.Button(self.algorithm_modes_frame, text="Import existing waypoints",
                                                   command=self.data_handler.import_waypoints)
         self.choose_waypoints_button.pack(side=tk.TOP, fill=tk.X, padx=5, pady=2)
 
-        self.plot_waypoints_button = ttk.Button(self.right_bottom_frame, text="Plot waypoints",
+        self.plot_waypoints_button = ttk.Button(self.algorithm_modes_frame, text="Plot waypoints",
                                                 command=self.plot_waypoints)
         self.plot_waypoints_button.pack(side=tk.TOP, fill=tk.X, padx=5, pady=2)
 
@@ -367,6 +393,62 @@ class PathPlannerGUI:
             index += 1
 
         self.map_widget.set_path(waypoints)
+
+    def calculate_uav_flight_path(self):
+        if not self.polygons:
+            messagebox.showinfo("Shortest Path Area Selection",
+                                "No polygon/area on map selected, please plot one first.")
+            return
+
+        latitudes = []
+        longitudes = []
+        altitudes = []
+
+        resulting_markers = []
+        resulting_markers_positions = []
+
+        elevation_data = srtm.get_data()
+
+        for coord in self.polygons[-1]:
+            latitudes.append(coord[0])
+            longitudes.append(coord[1])
+            elevation_at_coord = elevation_data.get_elevation(coord[0], coord[1])
+            altitudes.append(elevation_at_coord)
+
+        polygon_vertices_waypoints = latitudes + longitudes + altitudes
+        polygon_verticesIn = matlab.double(polygon_vertices_waypoints, size=(len(latitudes), 3))
+
+        # polygon_verticesIn = matlab.double(
+        #     [53.950974807525206, 53.946024591620926, 53.945898302917456, 53.95089904334211, 53.950974807525206,
+        #      -1.0329672619323844, -1.033224753997814, -1.0243412777404899, -1.0251566692810172, -1.0329672619323844,
+        #      50.0, 50.0, 50.0, 50.0, 50.0], size=(5, 3))
+        coordinate_pathOut, dubins_path_waypointsOut = self.my_tsp_solver.setupTSP(polygon_verticesIn, nargout=2)
+        # print(coordinate_pathOut, dubins_path_waypointsOut, sep='\n')
+
+        for i, coord in enumerate(coordinate_pathOut):
+            if i == 0:
+                marker = self.map_widget.set_marker(coord[0], coord[1], text=f"Start Position", marker_color_circle="white", marker_color_outside="green")
+            elif i == len(coordinate_pathOut) - 1:
+                marker = self.map_widget.set_marker(coord[0], coord[1], text=f"End Position", marker_color_circle="white", marker_color_outside="red")
+            else:
+                marker = self.map_widget.set_marker(coord[0], coord[1], text=f"Marker {i}", marker_color_circle="white", marker_color_outside="blue")
+            resulting_markers.append(marker)
+            resulting_markers_positions.append((coord[0], coord[1]))
+        # for i, waypoint in enumerate(dubins_path_waypointsOut):
+        #     if i == 0:
+        #         marker = self.map_widget.set_marker(waypoint[0], waypoint[1], text=f"Start Position", marker_color_circle="white", marker_color_outside="green")
+        #     elif i == len(dubins_path_waypointsOut) - 1:
+        #         marker = self.map_widget.set_marker(waypoint[0], waypoint[1], text=f"End Position", marker_color_circle="white", marker_color_outside="red")
+        #     else:
+        #         marker = self.map_widget.set_marker(waypoint[0], waypoint[1], text=f"Marker {i}", marker_color_circle="white", marker_color_outside="blue")
+        #     resulting_markers.append(marker)
+        #     resulting_markers_positions.append((waypoint[0], waypoint[1]))
+
+        # Draw path if more than one marker
+        if len(resulting_markers_positions) > 1:
+            self.map_widget.set_path(resulting_markers_positions)
+
+
 
     def test_PathPlanner2D(self):
         if not self.polygons:
