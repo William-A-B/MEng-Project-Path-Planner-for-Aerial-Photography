@@ -86,6 +86,7 @@ class PathPlannerGUI:
 
         self.elevation_profile_frame = None
         self.elevation_title_label = None
+        self.elevation_graph_frame = None
         self.setup_elevation_profile()
 
         self.algorithm_modes_frame = None
@@ -242,6 +243,29 @@ class PathPlannerGUI:
         self.elevation_title_label = ttk.Label(self.elevation_profile_frame, text="Elevation Profile",
                                                font=("Arial", 12, "bold"))
         self.elevation_title_label.pack(pady=(5, 5), anchor="w")
+        self.elevation_graph_frame = ttk.Frame(self.elevation_profile_frame)
+        self.elevation_graph_frame.pack(pady=(0, 10), fill=tk.X)
+
+        # Create a canvas placeholder with a message or empty space
+        graph_width = 300
+        graph_height = 150
+
+        self.elevation_canvas = tk.Canvas(
+            self.elevation_graph_frame,
+            width=graph_width,
+            height=graph_height,
+            bg='white'
+        )
+        self.elevation_canvas.pack(fill='both', expand=True)
+
+        # Optional: Display a placeholder message
+        self.elevation_canvas.create_text(
+            graph_width / 2,
+            graph_height / 2,
+            text="Elevation profile will appear here",
+            fill="gray",
+            font=("Arial", 12)
+        )
 
     def setup_algorithm_modes(self):
         self.calculate_shortest_path_button = None
@@ -406,6 +430,7 @@ class PathPlannerGUI:
 
         resulting_markers = []
         resulting_markers_positions = []
+        resulting_altitudes = []
 
         elevation_data = srtm.get_data()
 
@@ -434,6 +459,8 @@ class PathPlannerGUI:
                 marker = self.map_widget.set_marker(coord[0], coord[1], text=f"Marker {i}", marker_color_circle="white", marker_color_outside="blue")
             resulting_markers.append(marker)
             resulting_markers_positions.append((coord[0], coord[1]))
+            elevation_at_coord = elevation_data.get_elevation(coord[0], coord[1])
+            resulting_altitudes.append(elevation_at_coord)
         # for i, waypoint in enumerate(dubins_path_waypointsOut):
         #     if i == 0:
         #         marker = self.map_widget.set_marker(waypoint[0], waypoint[1], text=f"Start Position", marker_color_circle="white", marker_color_outside="green")
@@ -447,8 +474,46 @@ class PathPlannerGUI:
         # Draw path if more than one marker
         if len(resulting_markers_positions) > 1:
             self.map_widget.set_path(resulting_markers_positions)
+            self.plot_elevation_profile(resulting_altitudes)
 
 
+    def plot_elevation_profile(self, altitudes):
+        # Clear previous graph if any
+        for widget in self.elevation_graph_frame.winfo_children():
+            widget.destroy()
+
+        # Get frame dimensions
+        # graph_width = self.elevation_graph_frame.winfo_width()
+        # graph_height = self.elevation_graph_frame.winfo_height()
+
+        graph_width = 300
+        graph_height = 100
+
+        if graph_width <= 0 or graph_height <= 0 or not altitudes:
+            return  # Can't draw without dimensions or data
+
+        # Create a canvas
+        graph_canvas = tk.Canvas(self.elevation_graph_frame, width=graph_width, height=graph_height, bg='white')
+        graph_canvas.pack(fill='both', expand=True)
+
+        # Normalize the data
+        max_alt = max(altitudes)
+        min_alt = 0
+        range_alt = max_alt - min_alt if max_alt != min_alt else 1
+
+        num_points = len(altitudes)
+        x_spacing = graph_width / (num_points - 1)
+
+        points = []
+        for i, alt in enumerate(altitudes):
+            x = i * x_spacing
+            # Invert y-axis since Tkinter (0,0) is top-left
+            y = graph_height - ((alt - min_alt) / range_alt * graph_height)
+            points.append((x, y))
+
+        # Draw lines between points
+        for i in range(len(points) - 1):
+            graph_canvas.create_line(points[i][0], points[i][1], points[i + 1][0], points[i + 1][1], fill='blue', width=2)
 
     def test_PathPlanner2D(self):
         if not self.polygons:
