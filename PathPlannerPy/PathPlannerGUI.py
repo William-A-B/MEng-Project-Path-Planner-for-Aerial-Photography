@@ -11,6 +11,11 @@ from time import sleep
 from geopy.geocoders import Nominatim
 import PathPlannerDataStorage as ppds
 
+from matplotlib.backends.backend_tkagg import (FigureCanvasTkAgg,NavigationToolbar2Tk)
+# Implement the default Matplotlib key bindings.
+from matplotlib.backend_bases import key_press_handler
+from matplotlib.figure import Figure
+
 from PathPlannerMATLAB2D import PathPlanner2D
 from TSPSolver import TSPSolver
 import matlab
@@ -23,7 +28,7 @@ class PathPlannerGUI:
         # Initialise GUI
         self.root = root
         self.root.title("Path Planner Application")
-        self.root.geometry("1080x720")  # Width x Height
+        self.root.geometry("1280x960")  # Width x Height
 
         # Store marker positions
         self.markers = []
@@ -82,11 +87,15 @@ class PathPlannerGUI:
         self.waypoint_marker_frame = None
         self.waypoint_marker_messagebox = None
         self.waypoint_message_var = tk.StringVar()
+
         self.setup_waypoint_marker_coordinate_output()
 
         self.elevation_profile_frame = None
         self.elevation_title_label = None
         self.elevation_graph_frame = None
+        self.elevation_profile_figure = None
+        self.elevation_canvas_toolbar = None
+
         self.setup_elevation_profile()
 
         self.algorithm_modes_frame = None
@@ -119,7 +128,7 @@ class PathPlannerGUI:
         # Configure row/column weights
         self.main_frame.columnconfigure(0, weight=1)
         self.main_frame.columnconfigure(1, weight=3)
-        self.main_frame.rowconfigure(0, weight=5)
+        self.main_frame.rowconfigure(0, weight=8)
         self.main_frame.rowconfigure(1, weight=2)
 
         # Left Frame (50% Width)
@@ -139,7 +148,7 @@ class PathPlannerGUI:
 
     def setup_map_widget(self):
         # Add a map widget inside the top-right frame
-        self.map_widget = tkintermapview.TkinterMapView(self.right_top_frame, width=300, height=300, corner_radius=0)
+        self.map_widget = tkintermapview.TkinterMapView(self.right_top_frame, width=300, height=400, corner_radius=0)
         self.map_widget.pack(expand=True, fill=tk.BOTH, padx=5, pady=5)
 
         # set current widget position and zoom
@@ -246,26 +255,36 @@ class PathPlannerGUI:
         self.elevation_graph_frame = ttk.Frame(self.elevation_profile_frame)
         self.elevation_graph_frame.pack(pady=(0, 10), fill=tk.X)
 
-        # Create a canvas placeholder with a message or empty space
-        graph_width = 300
-        graph_height = 150
+        self.elevation_profile_figure = Figure(figsize=(6, 2.5), dpi=50)
 
-        self.elevation_canvas = tk.Canvas(
-            self.elevation_graph_frame,
-            width=graph_width,
-            height=graph_height,
-            bg='white'
-        )
-        self.elevation_canvas.pack(fill='both', expand=True)
+        self.elevation_canvas = FigureCanvasTkAgg(self.elevation_profile_figure, master=self.elevation_graph_frame)
+        self.elevation_canvas.draw()
 
-        # Optional: Display a placeholder message
-        self.elevation_canvas.create_text(
-            graph_width / 2,
-            graph_height / 2,
-            text="Elevation profile will appear here",
-            fill="gray",
-            font=("Arial", 12)
-        )
+        self.elevation_canvas_toolbar = NavigationToolbar2Tk(self.elevation_canvas, self.elevation_graph_frame)
+        self.elevation_canvas_toolbar.update()
+
+        self.elevation_canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
+
+        # # Create a canvas placeholder with a message or empty space
+        # graph_width = 300
+        # graph_height = 150
+        #
+        # self.elevation_canvas = tk.Canvas(
+        #     self.elevation_graph_frame,
+        #     width=graph_width,
+        #     height=graph_height,
+        #     bg='white'
+        # )
+        # self.elevation_canvas.pack(fill='both', expand=True)
+        #
+        # # Optional: Display a placeholder message
+        # self.elevation_canvas.create_text(
+        #     graph_width / 2,
+        #     graph_height / 2,
+        #     text="Elevation profile will appear here",
+        #     fill="gray",
+        #     font=("Arial", 12)
+        # )
 
     def setup_algorithm_modes(self):
         self.calculate_shortest_path_button = None
@@ -372,6 +391,9 @@ class PathPlannerGUI:
         self.markers.clear()
         self.marker_positions.clear()
         self.waypoint_message_var.set("")
+        self.elevation_profile_figure.clf()
+        self.elevation_canvas.draw()
+        self.elevation_canvas_toolbar.update()
 
     def save_polygon(self):
         if not self.polygons:
@@ -478,6 +500,22 @@ class PathPlannerGUI:
 
 
     def plot_elevation_profile(self, altitudes):
+        self.elevation_profile_figure.clf()
+        subplot = self.elevation_profile_figure.add_subplot(111)
+        x = list(range(len(altitudes)))  # X-axis: index or distance
+        subplot.plot(x, altitudes, label='Elevation', marker='o', linestyle='-', color='blue', markersize=4)
+        subplot.set_title("Elevation Profile")
+        subplot.set_xlabel("Distance")
+        subplot.set_ylabel("Altitude (m)")
+        subplot.grid(True)
+        subplot.legend()
+
+        self.elevation_canvas.draw()
+
+        self.elevation_canvas_toolbar.update()
+
+
+    def plot_elevation_profile_old(self, altitudes):
         # Clear previous graph if any
         for widget in self.elevation_graph_frame.winfo_children():
             widget.destroy()
