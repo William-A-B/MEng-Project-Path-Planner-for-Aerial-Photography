@@ -1,4 +1,4 @@
-function [coordinate_path, dubins_path_waypoints] = setupTSP(polygon_vertices)
+function [coordinate_path, dubins_path_waypoints] = setupTSP(polygon_vertices, wind_direction)
 
     %% =========================================================================
     % REAL COORDINATE TEST
@@ -42,20 +42,16 @@ function [coordinate_path, dubins_path_waypoints] = setupTSP(polygon_vertices)
     start_pos = [lat_min, lon_min, (alt_min + alt_max)/2];
     goal_pos = [lat_max, lon_max, (alt_min + alt_max)/2];
     
-    %% Wind conditions
-    wind_direction = -pi/2;
-    
-    
     %% Solve TSP
     [coordinate_path, dubins_path_collection] = solveTravellingSalesmanProblem(start_pos, goal_pos, square_corners, wind_direction);
     % display_results(start_pos, goal_pos, wind_direction, square_size(:, 1:2), square_centres, square_corners, coordinate_path, dubins_path_collection);
     
-    dubins_path_waypoints = [];
+    dubins_path_waypoints_utm = [];
 
     for i = 1:size(dubins_path_collection, 1)
         % Evaluate pathSegObj to get path states (poses)
         dubins_path_waypoints_connection = interpolate(dubins_path_collection{i}, linspace(0, dubins_path_collection{i}.Length, 20));
-        dubins_path_waypoints = [dubins_path_waypoints; dubins_path_waypoints_connection];
+        dubins_path_waypoints_utm = [dubins_path_waypoints_utm; dubins_path_waypoints_connection];
     end
     
     % Update the utmzone array to equal the size of the full list of
@@ -64,6 +60,11 @@ function [coordinate_path, dubins_path_waypoints] = setupTSP(polygon_vertices)
     utmzone_updated = repmat(utmzone(1, :), num_coordinate_points, 1);
     [resulting_lat_coords, resulting_lon_coords] = utm2deg(coordinate_path(:, 1), coordinate_path(:, 2), utmzone_updated);
     coordinate_path = [resulting_lat_coords, resulting_lon_coords];
+
+    num_dubins_waypoints = size(dubins_path_waypoints_utm, 1);
+    utmzone_dubins_waypoints = repmat(utmzone(1, :), num_dubins_waypoints, 1);
+    [dubins_lat_coords, dubins_lon_coords] = utm2deg(dubins_path_waypoints_utm(:, 1), dubins_path_waypoints_utm(:, 2), utmzone_dubins_waypoints);
+    dubins_path_waypoints = [dubins_lat_coords, dubins_lon_coords];
     
 end
 

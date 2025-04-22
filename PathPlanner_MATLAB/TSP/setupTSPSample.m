@@ -6,4 +6,6 @@ polygon_vertices = [
     53.950974807525206, -1.0329672619323844, 50 % Close the loop
 ];
 
-[coordinate_path, dubins_path_waypoints] = setupTSP(polygon_vertices);
+wind_direction = -pi/2;
+
+[coordinate_path, dubins_path_waypoints] = setupTSP(polygon_vertices, wind_direction);
