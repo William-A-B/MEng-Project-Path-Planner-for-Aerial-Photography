@@ -1,4 +1,4 @@
-function [coordinate_path, dubins_path_waypoints] = setupTSP(polygon_vertices, wind_direction)
+function [coordinate_path, dubins_path_waypoints] = setupTSP(polygon_vertices, wind_direction, num_divisions, plot_results)
 
     %% =========================================================================
     % REAL COORDINATE TEST
@@ -12,9 +12,9 @@ function [coordinate_path, dubins_path_waypoints] = setupTSP(polygon_vertices, w
     polygon_vertices_utm = [utm_polygon_vertices, polygon_vertices(:, 3)];
     
     % Define grid resolution (adjust as needed)
-    num_divisions_x = 7;  % Number of divisions along latitude
-    num_divisions_y = 7;  % Number of divisions along longitude
-    num_divisions_z = 3;  % Number of divisions along longitude
+    num_divisions_x = num_divisions.x;  % Number of divisions along latitude
+    num_divisions_y = num_divisions.y;  % Number of divisions along longitude
+    num_divisions_z = num_divisions.z;  % Number of divisions along longitude
     
     lat_min = min(polygon_vertices_utm(:,1));
     lat_max = max(polygon_vertices_utm(:,1));
@@ -32,19 +32,29 @@ function [coordinate_path, dubins_path_waypoints] = setupTSP(polygon_vertices, w
     % Convert to list of waypoints
     grid_waypoints = [lat_grid(:), lon_grid(:), alt_grid(:)];
 
-    % display_initial_coordinate_grid(polygon_vertices_utm, grid_waypoints);
+    % Remove any points outside the polygon region
+    [in, on] = inpolygon(grid_waypoints(:, 1), grid_waypoints(:, 2), polygon_vertices_utm(:,1), polygon_vertices_utm(:,2));
+    
+    valid_coordinates_indices = in | on;
+    valid_grid_waypoints = grid_waypoints(valid_coordinates_indices, :);
+
+    start_pos = [lat_min, lon_min, (alt_min + alt_max)/2];
+    goal_pos = [lat_max, lon_max, (alt_min + alt_max)/2];
+
+    if plot_results
+        display_initial_coordinate_grid(polygon_vertices_utm, grid_waypoints, valid_grid_waypoints);
+    end
     
     square_size = [range(polygon_vertices_utm(:, 1))/(num_divisions_x), range(polygon_vertices_utm(:, 2))/(num_divisions_y)]; 
-    square_centres = grid_waypoints;
+    square_centres = valid_grid_waypoints;
     square_corners_2d = calculate_square_corner_coordinates(square_centres, square_size);
     square_corners = [square_corners_2d, zeros(size(square_corners_2d, 1), 1)];
     
-    start_pos = [lat_min, lon_min, (alt_min + alt_max)/2];
-    goal_pos = [lat_max, lon_max, (alt_min + alt_max)/2];
-    
     %% Solve TSP
     [coordinate_path, dubins_path_collection] = solveTravellingSalesmanProblem(start_pos, goal_pos, square_corners, wind_direction);
-    % display_results(start_pos, goal_pos, wind_direction, square_size(:, 1:2), square_centres, square_corners, coordinate_path, dubins_path_collection);
+    if plot_results
+        display_results(start_pos, goal_pos, wind_direction, square_size(:, 1:2), square_centres, square_corners, coordinate_path, dubins_path_collection);
+    end
     
     dubins_path_waypoints_utm = [];
 
@@ -138,10 +148,12 @@ function display_results(start_pos, goal_pos, wind_direction, square_size, squar
     legend('show');
 end
 
-function display_initial_coordinate_grid(polygon_vertices_utm, grid_waypoints)
+function display_initial_coordinate_grid(polygon_vertices_utm, grid_waypoints, valid_grid_waypoints)
     % Plot the polygon
     figure;
-    plot(polygon_vertices_utm(:,2), polygon_vertices_utm(:,1), 'b-o', 'LineWidth', 2);
+    hold on;
+    % Plot polygon
+    plot(polygon_vertices_utm(:,1), polygon_vertices_utm(:,2), 'b-o', 'LineWidth', 2);
     xlabel('Longitude');
     ylabel('Latitude');
     title('Defined Surveillance Area');
@@ -149,7 +161,7 @@ function display_initial_coordinate_grid(polygon_vertices_utm, grid_waypoints)
     axis equal;
 
     % Plot the grid points
-    hold on;
-    scatter(grid_waypoints(:,2), grid_waypoints(:,1), 'r*');
+    scatter(grid_waypoints(:,1), grid_waypoints(:,2), 'r*');
+    scatter(valid_grid_waypoints(:,1), valid_grid_waypoints(:,2), 'g*');
     legend('Polygon Boundary', 'Grid Points');
 end
