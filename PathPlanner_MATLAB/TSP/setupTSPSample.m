@@ -23,8 +23,13 @@ polygon_vertices = [
     53.95375719839131, -1.0404824359104623, 50; % Close the loop
 ];
 
+start_pos = [53.95375719839131, -1.0404824359104623, 50];
+goal_pos = [53.94537235295549, -1.0177802188084115, 50];
 
 wind_direction = -pi/2;
+
+altitude_limits.min = 20;
+altitude_limits.max = 1000;
 
 num_divisions.x = 12;
 num_divisions.y = 12;
@@ -32,4 +37,4 @@ num_divisions.z = 3;
 
 plot_results = true;
 
-[coordinate_path, dubins_path_waypoints] = setupTSP(polygon_vertices, wind_direction, num_divisions, plot_results);
+[coordinate_path, dubins_path_waypoints] = setupTSP(start_pos, goal_pos, polygon_vertices, wind_direction, altitude_limits, num_divisions, plot_results);

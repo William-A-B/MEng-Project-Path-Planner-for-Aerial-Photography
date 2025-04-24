@@ -1,14 +1,21 @@
-function [coordinate_path, dubins_path_waypoints] = setupTSP(polygon_vertices, wind_direction, num_divisions, plot_results)
+function [coordinate_path, dubins_path_waypoints] = setupTSP(start_pos, goal_pos, polygon_vertices, wind_direction, altitude_limits, num_divisions, plot_results)
 
     %% =========================================================================
     % REAL COORDINATE TEST
     polygon_vertices = round(polygon_vertices, 6);
+    start_pos = round(start_pos, 6);
+    goal_pos = round(goal_pos, 6);
     
     polygon_vertices_2d = polygon_vertices(:, 1:2);
     
     % Scale values to UTM
-    [utm_polygon_vertices(:, 1), utm_polygon_vertices(:, 2), utmzone] = deg2utm(polygon_vertices_2d(:, 1), polygon_vertices_2d(:, 2));
+    [utm_polygon_vertices(:, 1), utm_polygon_vertices(:, 2), polygon_utmzone] = deg2utm(polygon_vertices_2d(:, 1), polygon_vertices_2d(:, 2));
     
+    [start_pos_utm(:, 1), start_pos_utm(:, 2), start_pos_utmzone] = deg2utm(start_pos(:, 1), start_pos(:, 2));
+    start_pos_utm = [start_pos_utm, start_pos(:, 3)];
+    [goal_pos_utm(:, 1), goal_pos_utm(:, 2), goal_pos_utmzone] = deg2utm(goal_pos(:, 1), goal_pos(:, 2));
+    goal_pos_utm = [goal_pos_utm, goal_pos(:, 3)];
+
     polygon_vertices_utm = [utm_polygon_vertices, polygon_vertices(:, 3)];
     
     % Define grid resolution (adjust as needed)
@@ -38,8 +45,8 @@ function [coordinate_path, dubins_path_waypoints] = setupTSP(polygon_vertices, w
     valid_coordinates_indices = in | on;
     valid_grid_waypoints = grid_waypoints(valid_coordinates_indices, :);
 
-    start_pos = [lat_min, lon_min, (alt_min + alt_max)/2];
-    goal_pos = [lat_max, lon_max, (alt_min + alt_max)/2];
+    % start_pos = [lat_min, lon_min, (alt_min + alt_max)/2];
+    % goal_pos = [lat_max, lon_max, (alt_min + alt_max)/2];
 
     if plot_results
         display_initial_coordinate_grid(polygon_vertices_utm, grid_waypoints, valid_grid_waypoints);
@@ -51,9 +58,9 @@ function [coordinate_path, dubins_path_waypoints] = setupTSP(polygon_vertices, w
     square_corners = [square_corners_2d, zeros(size(square_corners_2d, 1), 1)];
     
     %% Solve TSP
-    [coordinate_path, dubins_path_collection] = solveTravellingSalesmanProblem(start_pos, goal_pos, square_corners, wind_direction);
+    [coordinate_path, dubins_path_collection] = solveTravellingSalesmanProblem(start_pos_utm, goal_pos_utm, square_corners, wind_direction);
     if plot_results
-        display_results(start_pos, goal_pos, wind_direction, square_size(:, 1:2), square_centres, square_corners, coordinate_path, dubins_path_collection);
+        display_results(start_pos_utm, goal_pos_utm, wind_direction, square_size(:, 1:2), square_centres, square_corners, coordinate_path, dubins_path_collection);
     end
     
     dubins_path_waypoints_utm = [];
@@ -67,12 +74,12 @@ function [coordinate_path, dubins_path_waypoints] = setupTSP(polygon_vertices, w
     % Update the utmzone array to equal the size of the full list of
     % coordinates
     num_coordinate_points = size(coordinate_path, 1);
-    utmzone_updated = repmat(utmzone(1, :), num_coordinate_points, 1);
+    utmzone_updated = repmat(polygon_utmzone(1, :), num_coordinate_points, 1);
     [resulting_lat_coords, resulting_lon_coords] = utm2deg(coordinate_path(:, 1), coordinate_path(:, 2), utmzone_updated);
     coordinate_path = [resulting_lat_coords, resulting_lon_coords];
 
     num_dubins_waypoints = size(dubins_path_waypoints_utm, 1);
-    utmzone_dubins_waypoints = repmat(utmzone(1, :), num_dubins_waypoints, 1);
+    utmzone_dubins_waypoints = repmat(polygon_utmzone(1, :), num_dubins_waypoints, 1);
     [dubins_lat_coords, dubins_lon_coords] = utm2deg(dubins_path_waypoints_utm(:, 1), dubins_path_waypoints_utm(:, 2), utmzone_dubins_waypoints);
     dubins_path_waypoints = [dubins_lat_coords, dubins_lon_coords];
     
