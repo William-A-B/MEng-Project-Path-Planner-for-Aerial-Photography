@@ -1,4 +1,4 @@
-function [coordinate_path, dubins_path_collection] = solveTravellingSalesmanProblem(start_pos, goal_pos, coordinate_waypoints, wind_direction)
+function [coordinate_path, dubins_path_collection] = solveTravellingSalesmanProblem(start_pos, goal_pos, coordinate_waypoints, wind_direction, uav_turning_radius)
 %SOLVETRAVELLINGSALESMANPROBLEM Solves a TSP problem with Dubins path constraints and wind-aware navigation.
 % 
 %   [coordinate_path, dubins_path_collection] = solveTravellingSalesmanProblem(start_pos, goal_pos, coordinate_waypoints, wind_direction)
@@ -60,7 +60,7 @@ function [coordinate_path, dubins_path_collection] = solveTravellingSalesmanProb
     current_pos = start_pos_2d;
     next_pos = starting_coordinate;
 
-    [dubins_path_segment, ~] = calculate_dubins_connection(prev_pos, current_pos, next_pos);
+    [dubins_path_segment, ~] = calculate_dubins_connection(prev_pos, current_pos, next_pos, uav_turning_radius);
 
     coordinate_path(2, :) = next_pos;
     unexplored_coordinate_points = remove_explored_coordinates(unexplored_coordinate_points, start_coord_index);
@@ -105,7 +105,7 @@ function [coordinate_path, dubins_path_collection] = solveTravellingSalesmanProb
         % can be implemented by doing something similar to
         % calculate_closest_position and adding the wind penalty onto the
         % dubins path cost value.
-        [dubins_path_segment, ~, new_next_pos] = calculate_optimised_dubins_connection(unexplored_coordinate_points, prev_pos, current_pos, next_pos);
+        [dubins_path_segment, ~, new_next_pos] = calculate_optimised_dubins_connection(unexplored_coordinate_points, prev_pos, current_pos, next_pos, uav_turning_radius);
 
         % update next position if the dubins path new position is different
         if ~isequal(next_pos, new_next_pos)
@@ -131,7 +131,7 @@ function [coordinate_path, dubins_path_collection] = solveTravellingSalesmanProb
     end
     % Explored all grid coordinate, calculate dubins path from final
     % coordinate to the goal position.
-    [dubins_path_segment, ~] = calculate_dubins_connection(prev_pos, current_pos, goal_pos_2d);
+    [dubins_path_segment, ~] = calculate_dubins_connection(prev_pos, current_pos, goal_pos_2d, uav_turning_radius);
     coordinate_path(num_imaging_locations+2, :) = goal_pos_2d;
     dubins_path_collection = [dubins_path_collection; dubins_path_segment];
 
@@ -321,11 +321,11 @@ function [departure_dir, arrival_dir] = calculate_directions(coord1, coord2)
     arrival_dir = atan2(direction_vector(2), direction_vector(1));
 end
 
-function [path_segment, path_cost] = calculate_dubins_connection(previous_pos, current_pos, next_pos)
+function [path_segment, path_cost] = calculate_dubins_connection(previous_pos, current_pos, next_pos, uav_turning_radius)
     %CALCULATE_DUBINS_CONNECTION Generates a Dubins path segment between two 
     % poses, considering turning radius and heading angles.
     dubConnObj = dubinsConnection;
-    dubConnObj.MinTurningRadius = 30;
+    dubConnObj.MinTurningRadius = uav_turning_radius;
 
     [~, prev_arrival_dir] = calculate_directions(previous_pos, current_pos);
     [~, next_arrival_dir] = calculate_directions(current_pos, next_pos);
@@ -339,11 +339,11 @@ function [path_segment, path_cost] = calculate_dubins_connection(previous_pos, c
     path_cost = pathCosts;
 end
 
-function [path_segment, path_cost, new_next_pos] = calculate_optimised_dubins_connection(coordinate_waypoints, previous_pos, current_pos, next_pos)
+function [path_segment, path_cost, new_next_pos] = calculate_optimised_dubins_connection(coordinate_waypoints, previous_pos, current_pos, next_pos, uav_turning_radius)
     %CALCULATE_OPTIMISED_DUBINS_CONNECTION Evaluates all 4 candidates in the 
     % target 2x2 imaging grid and chooses the one yielding the lowest Dubins cost.
     dubConnObj = dubinsConnection;
-    dubConnObj.MinTurningRadius = 30;
+    dubConnObj.MinTurningRadius = uav_turning_radius;
     
     % Find index of next_pos coordinate and retrieve the 4 imaging
     % candidates for the 2x2 grid

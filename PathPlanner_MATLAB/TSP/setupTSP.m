@@ -1,4 +1,4 @@
-function [coordinate_path, dubins_path_waypoints] = setupTSP(start_pos, goal_pos, polygon_vertices, wind_direction, altitude_limits, num_divisions, plot_results)
+function [coordinate_path, dubins_path_waypoints] = setupTSP(start_pos, goal_pos, polygon_vertices, wind_direction, altitude_limits, uav_turning_radius, num_divisions, plot_results)
 
     %% =========================================================================
     % REAL COORDINATE TEST
@@ -21,14 +21,14 @@ function [coordinate_path, dubins_path_waypoints] = setupTSP(start_pos, goal_pos
     % Define grid resolution (adjust as needed)
     num_divisions_x = num_divisions.x;  % Number of divisions along latitude
     num_divisions_y = num_divisions.y;  % Number of divisions along longitude
-    num_divisions_z = num_divisions.z;  % Number of divisions along longitude
+    num_divisions_z = num_divisions.z;  % Number of divisions along altitude
     
     lat_min = min(polygon_vertices_utm(:,1));
     lat_max = max(polygon_vertices_utm(:,1));
     lon_min = min(polygon_vertices_utm(:,2));
     lon_max = max(polygon_vertices_utm(:,2));
-    alt_min = min(polygon_vertices_utm(:,3));
-    alt_max = max(polygon_vertices_utm(:,3));
+    alt_min = altitude_limits.min;
+    alt_max = altitude_limits.max;
     
     % Generate a grid of waypoints
     lat_values = linspace(lat_min, lat_max, num_divisions_x);
@@ -37,28 +37,33 @@ function [coordinate_path, dubins_path_waypoints] = setupTSP(start_pos, goal_pos
     [lon_grid, lat_grid, alt_grid] = ndgrid(lon_values, lat_values, alt_values);
     
     % Convert to list of waypoints
-    grid_waypoints = [lat_grid(:), lon_grid(:), alt_grid(:)];
+    imaging_coordinates = [lat_grid(:), lon_grid(:), alt_grid(:)];
 
     % Remove any points outside the polygon region
-    [in, on] = inpolygon(grid_waypoints(:, 1), grid_waypoints(:, 2), polygon_vertices_utm(:,1), polygon_vertices_utm(:,2));
-    
-    valid_coordinates_indices = in | on;
-    valid_grid_waypoints = grid_waypoints(valid_coordinates_indices, :);
+    [in, on] = inpolygon(imaging_coordinates(:, 1), imaging_coordinates(:, 2), polygon_vertices_utm(:,1), polygon_vertices_utm(:,2));
+    valid_imaging_coordinates_indices = in | on;
+    valid_imaging_coordinates = imaging_coordinates(valid_imaging_coordinates_indices, :);
 
-    % start_pos = [lat_min, lon_min, (alt_min + alt_max)/2];
-    % goal_pos = [lat_max, lon_max, (alt_min + alt_max)/2];
+    % Calculate all real altitudes for each grid point
+    valid_imaging_coordinates_deg = utm2deg_wrapper(valid_imaging_coordinates, polygon_utmzone);
+    imaging_coordinates_altitudes = getElevation(valid_imaging_coordinates_deg(:, 1), valid_imaging_coordinates_deg(:, 2));
+    uav_imaging_coordinate_altitudes = valid_imaging_coordinates(:, 3) + imaging_coordinates_altitudes;
+    valid_imaging_coordinates_real_altitudes = [valid_imaging_coordinates(:, 1), valid_imaging_coordinates(:, 2), uav_imaging_coordinate_altitudes];
 
     if plot_results
-        display_initial_coordinate_grid(polygon_vertices_utm, grid_waypoints, valid_grid_waypoints);
+        display_initial_coordinate_grid(polygon_vertices_utm, imaging_coordinates, valid_imaging_coordinates);
+        display_imaging_coordinate_3d_grid(valid_imaging_coordinates_real_altitudes);
     end
     
     square_size = [range(polygon_vertices_utm(:, 1))/(num_divisions_x), range(polygon_vertices_utm(:, 2))/(num_divisions_y)]; 
-    square_centres = valid_grid_waypoints;
+    square_centres = valid_imaging_coordinates_real_altitudes;
     square_corners_2d = calculate_square_corner_coordinates(square_centres, square_size);
     square_corners = [square_corners_2d, zeros(size(square_corners_2d, 1), 1)];
+
+    cuboid_corners = calculate_cuboid_corner_coordinates(valid_imaging_coordinates_real_altitudes, square_size, num_divisions_z);
     
     %% Solve TSP
-    [coordinate_path, dubins_path_collection] = solveTravellingSalesmanProblem(start_pos_utm, goal_pos_utm, square_corners, wind_direction);
+    [coordinate_path, dubins_path_collection] = solveTravellingSalesmanProblem(start_pos_utm, goal_pos_utm, square_corners, wind_direction, uav_turning_radius);
     if plot_results
         display_results(start_pos_utm, goal_pos_utm, wind_direction, square_size(:, 1:2), square_centres, square_corners, coordinate_path, dubins_path_collection);
     end
@@ -102,6 +107,39 @@ function [square_corners] = calculate_square_corner_coordinates(square_centres, 
         square_corners(index:index+3, :) = corners;
         index = index + 4;
     end
+end
+
+function [cuboid_corners] = calculate_cuboid_corner_coordinates(imaging_coordinates, square_size, num_divisions_z)
+    num_cuboids = size(imaging_coordinates, 1) / num_divisions_z;
+    square_radius = square_size(1) / 4;
+    cuboid_corners = zeros(num_cuboids * num_divisions_z * 4, 3);
+    cuboid_index = 1;
+    for i = 1:num_cuboids
+        cuboid_centre = imaging_coordinates(i, :);
+        [cuboid_centre_indexes, ~] = find(ismember(imaging_coordinates(:, 1:2), cuboid_centre(:, 1:2), 'rows'));
+        cuboid_altitudes = imaging_coordinates(cuboid_centre_indexes, 3);
+        num_cuboid_altitudes = size(cuboid_altitudes, 1);
+        corner_set = zeros(num_cuboid_altitudes * 4, 3);
+        corner_altitude_index = 1;
+        for j = 1:num_cuboid_altitudes
+            corners_at_alt = [cuboid_centre(1) - square_radius, cuboid_centre(2) + square_radius, cuboid_altitudes(j);
+                          cuboid_centre(1) + square_radius, cuboid_centre(2) + square_radius, cuboid_altitudes(j);
+                          cuboid_centre(1) + square_radius, cuboid_centre(2) - square_radius, cuboid_altitudes(j);
+                          cuboid_centre(1) - square_radius, cuboid_centre(2) - square_radius, cuboid_altitudes(j)];
+            corner_set(corner_altitude_index:corner_altitude_index+3, :) = corners_at_alt;
+            corner_altitude_index = corner_altitude_index + 4;
+        end
+        cuboid_upper_index = (cuboid_index + ((num_cuboid_altitudes * 4) - 1));
+        cuboid_corners(cuboid_index:cuboid_upper_index, :) = corner_set;
+        cuboid_index = cuboid_upper_index + 1;
+    end
+end
+
+function [coordinate_list] = utm2deg_wrapper(utm_coordinate_list, utmzone)
+    num_coordinate_points = size(utm_coordinate_list, 1);
+    utmzone_updated = repmat(utmzone(1, :), num_coordinate_points, 1);
+    [resulting_lat_coords, resulting_lon_coords] = utm2deg(utm_coordinate_list(:, 1), utm_coordinate_list(:, 2), utmzone_updated);
+    coordinate_list = [resulting_lat_coords, resulting_lon_coords, utm_coordinate_list(:, 3)];
 end
 
 function display_results(start_pos, goal_pos, wind_direction, square_size, square_centres, square_corners, coordinate_path, dubins_paths)
@@ -171,4 +209,61 @@ function display_initial_coordinate_grid(polygon_vertices_utm, grid_waypoints, v
     scatter(grid_waypoints(:,1), grid_waypoints(:,2), 'r*');
     scatter(valid_grid_waypoints(:,1), valid_grid_waypoints(:,2), 'g*');
     legend('Polygon Boundary', 'Grid Points');
+end
+
+function display_imaging_coordinate_3d_grid(imaging_coordinates)
+    % Extract UTM X, Y, and real-world altitude (Z)
+    x = imaging_coordinates(:,1);
+    y = imaging_coordinates(:,2);
+    z = imaging_coordinates(:,3);
+    
+    % Create an interpolant function from the scattered data
+    F = scatteredInterpolant(x, y, z, 'natural', 'none');
+
+    % Define regular grid resolution (adjust as needed)
+    grid_res = 100;  % number of points along each axis
+    
+    % Create mesh grid over the range of your data
+    x_lin = linspace(min(x), max(x), grid_res);
+    y_lin = linspace(min(y), max(y), grid_res);
+    [Xq, Yq] = meshgrid(x_lin, y_lin);
+    
+    % Interpolate Z values (altitude) over the regular grid
+    Zq = F(Xq, Yq);
+    
+    figure;
+    mesh(Xq, Yq, Zq);  % Or use surf(Xq, Yq, Zq) for filled surface
+    xlabel('X (UTM)');
+    ylabel('Y (UTM)');
+    zlabel('Altitude (m)');
+    title('Interpolated UAV Altitude Surface');
+    colormap jet;
+    colorbar;
+    shading interp;    % Smooth color transitions
+    view(3);
+    grid on;
+
+    hold on;
+    scatter3(x, y, z, 10, 'k', 'filled');
+end
+
+function display_imaging_coordinate_3d_grid_simple(imaging_coordinates)
+    figure;
+    scatter3( ...
+        imaging_coordinates(:,1), ...  % X (UTM)
+        imaging_coordinates(:,2), ...  % Y (UTM)
+        imaging_coordinates(:,3), ... % Z (real altitude)
+        36, ...                               % Marker size
+        imaging_coordinates(:,3), ... % Color by altitude
+        'filled' ...
+    );
+    xlabel('X (UTM)');
+    ylabel('Y (UTM)');
+    zlabel('Altitude (m)');
+    title('3D UAV Waypoints with Altitude Gradient');
+    colormap jet;        % You can use parula, viridis, turbo, etc.
+    colorbar;            % Show color scale for altitude
+    view(3);             % 3D view
+    grid on;
+
 end

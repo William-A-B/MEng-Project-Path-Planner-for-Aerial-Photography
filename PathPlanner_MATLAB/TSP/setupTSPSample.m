@@ -29,7 +29,9 @@ goal_pos = [53.94537235295549, -1.0177802188084115, 50];
 wind_direction = -pi/2;
 
 altitude_limits.min = 20;
-altitude_limits.max = 1000;
+altitude_limits.max = 100;
+
+uav_turning_radius = 30;
 
 num_divisions.x = 12;
 num_divisions.y = 12;
@@ -37,4 +39,4 @@ num_divisions.z = 3;
 
 plot_results = true;
 
-[coordinate_path, dubins_path_waypoints] = setupTSP(start_pos, goal_pos, polygon_vertices, wind_direction, altitude_limits, num_divisions, plot_results);
+[coordinate_path, dubins_path_waypoints] = setupTSP(start_pos, goal_pos, polygon_vertices, wind_direction, altitude_limits, uav_turning_radius, num_divisions, plot_results);
