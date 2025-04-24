@@ -63,7 +63,7 @@ function [coordinate_path, dubins_path_waypoints] = setupTSP(start_pos, goal_pos
     cuboid_corners = calculate_cuboid_corner_coordinates(valid_imaging_coordinates_real_altitudes, square_size, num_divisions_z);
     
     %% Solve TSP
-    [coordinate_path, dubins_path_collection] = solveTravellingSalesmanProblem(start_pos_utm, goal_pos_utm, square_corners, wind_direction, uav_turning_radius);
+    [coordinate_path, dubins_path_collection] = solveTravellingSalesmanProblem(start_pos_utm, goal_pos_utm, square_corners, wind_direction, uav_turning_radius, num_divisions_z);
     if plot_results
         display_results(start_pos_utm, goal_pos_utm, wind_direction, square_size(:, 1:2), square_centres, square_corners, coordinate_path, dubins_path_collection);
     end
