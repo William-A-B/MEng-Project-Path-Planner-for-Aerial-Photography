@@ -1,7 +1,0 @@
-setup.py
-PathPlanner2D/PathPlanner2D.ctf
-PathPlanner2D/__init__.py
-PathPlanner2D_R2024b.egg-info/PKG-INFO
-PathPlanner2D_R2024b.egg-info/SOURCES.txt
-PathPlanner2D_R2024b.egg-info/dependency_links.txt
-PathPlanner2D_R2024b.egg-info/top_level.txt

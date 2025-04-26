@@ -1,9 +1,0 @@
-Metadata-Version: 2.1
-Name: PathPlanner2D-R2024b
-Version: 24.2
-Summary: A Python interface to PathPlanner2D
-Home-page: https://www.mathworks.com/
-Author: MathWorks
-Platform: Linux
-Platform: Windows
-Platform: macOS

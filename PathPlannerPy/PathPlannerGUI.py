@@ -6,32 +6,50 @@ import tkinter as tk
 from tkinter import ttk
 from tkinter import messagebox
 import tkintermapview
-from tkintermapview import TkinterMapView
 from time import sleep
 from geopy.geocoders import Nominatim
 import PathPlannerDataStorage as ppds
+import PathPlannerDataStructures as ppstruct
+import math
 
-from PathPlannerMATLAB2D import PathPlanner2D
+from matplotlib.backends.backend_tkagg import (FigureCanvasTkAgg, NavigationToolbar2Tk)
+# Implement the default Matplotlib key bindings.
+from matplotlib.backend_bases import key_press_handler
+from matplotlib.figure import Figure
+
+from PathPlannerMATLAB2D_OLD import PathPlanner2D
+from PathPlannerTSPSolver_2D import setupTSP
 import matlab
 
 import srtm
 
 
 class PathPlannerGUI:
-    def __init__(self, root, data_handler):
+    def __init__(self, root, tsp_solver, data_handler):
         # Initialise GUI
         self.root = root
         self.root.title("Path Planner Application")
-        self.root.geometry("1080x720")  # Width x Height
+        self.root.geometry("1280x960")  # Width x Height
+
+        self.elevation_data = srtm.get_data()
 
         # Store marker positions
         self.markers = []
         self.marker_positions = []
         self.lines = []
         self.polygons = []
+        self.start_pos = None
+        self.goal_pos = None
+
+        self.wind_condition = ppstruct.WindConditions(0, 0)
+
+        self.uav_altitude_limits = ppstruct.UAVAltitudeLimits(20, 100)
 
         # Buttons for Line/Polygon Mode
         self.mode = "none"  # Default mode is none
+
+        # Object for calling TSP Solver
+        self.my_tsp_solver = tsp_solver
 
         # Data Storage
         self.data_handler = data_handler
@@ -64,6 +82,22 @@ class PathPlannerGUI:
 
         self.setup_tile_layer_settings()
 
+        self.flight_parameters_frame = None
+        self.flight_parameters_title_label = None
+        self.select_wind_direction_label = None
+        self.wind_direction_menu = None
+        self.altitude_limits_frame = None
+        self.altitude_limits_label = None
+        self.min_altitude_label = None
+        self.max_altitude_label = None
+        self.min_altitude_var = tk.StringVar(value=str(self.uav_altitude_limits.min_altitude))
+        self.max_altitude_var = tk.StringVar(value=str(self.uav_altitude_limits.max_altitude))
+        self.min_altitude_box = None
+        self.max_altitude_box = None
+        self.set_altitude_limits_button = None
+
+        self.setup_flight_parameter_settings()
+
         self.drawing_mode_frame = None
         self.drawing_mode_title_label = None
         self.current_drawing_mode_label = None
@@ -78,8 +112,18 @@ class PathPlannerGUI:
         self.waypoint_marker_frame = None
         self.waypoint_marker_messagebox = None
         self.waypoint_message_var = tk.StringVar()
+
         self.setup_waypoint_marker_coordinate_output()
 
+        self.elevation_profile_frame = None
+        self.elevation_title_label = None
+        self.elevation_graph_frame = None
+        self.elevation_profile_figure = None
+        self.elevation_canvas_toolbar = None
+
+        self.setup_elevation_profile()
+
+        self.algorithm_modes_frame = None
         self.algorithm_title_label = None
         self.calculate_shortest_path_button = None
         self.choose_waypoints_button = None
@@ -109,7 +153,7 @@ class PathPlannerGUI:
         # Configure row/column weights
         self.main_frame.columnconfigure(0, weight=1)
         self.main_frame.columnconfigure(1, weight=3)
-        self.main_frame.rowconfigure(0, weight=5)
+        self.main_frame.rowconfigure(0, weight=8)
         self.main_frame.rowconfigure(1, weight=2)
 
         # Left Frame (50% Width)
@@ -124,10 +168,12 @@ class PathPlannerGUI:
         # Right Bottom Frame (50% Height)
         self.right_bottom_frame = ttk.Frame(self.main_frame, padding=5, relief=tk.RIDGE, borderwidth=2)
         self.right_bottom_frame.grid(row=1, column=1, sticky="nsew")
+        self.right_bottom_frame.rowconfigure(0, weight=3)
+        self.right_bottom_frame.rowconfigure(1, weight=2)
 
     def setup_map_widget(self):
         # Add a map widget inside the top-right frame
-        self.map_widget = tkintermapview.TkinterMapView(self.right_top_frame, width=300, height=300, corner_radius=0)
+        self.map_widget = tkintermapview.TkinterMapView(self.right_top_frame, width=300, height=400, corner_radius=0)
         self.map_widget.pack(expand=True, fill=tk.BOTH, padx=5, pady=5)
 
         # set current widget position and zoom
@@ -136,6 +182,10 @@ class PathPlannerGUI:
 
         # Right click menu options
         self.map_widget.add_right_click_menu_command(label="Add Marker", command=self.add_marker_event,
+                                                     pass_coords=True)
+        self.map_widget.add_right_click_menu_command(label="Set Start Position Marker", command=self.set_start_position,
+                                                     pass_coords=True)
+        self.map_widget.add_right_click_menu_command(label="Set Goal Position Marker", command=self.set_goal_position,
                                                      pass_coords=True)
 
         self.map_widget.add_left_click_map_command(self.on_map_click)
@@ -174,6 +224,102 @@ class PathPlannerGUI:
         for i, tile in enumerate(tiles):
             btn = ttk.Button(self.tile_button_frame, text=tile, command=lambda t=tile: self.change_tile_layer(t))
             btn.grid(row=0, column=i, sticky="ew", padx=2)
+
+    def setup_flight_parameter_settings(self):
+        self.flight_parameters_title_label = ttk.Label(self.left_frame, text="Flight Parameters",
+                                                       font=("Arial", 12, "bold"))
+        self.flight_parameters_title_label.pack(pady=(10, 5), anchor="w")
+
+        # Frame to hold flight parameter settings
+        self.flight_parameters_frame = ttk.Frame(self.left_frame)
+        self.flight_parameters_frame.pack(pady=(0, 10), fill=tk.X)
+
+        self.select_wind_direction_label = ttk.Label(self.flight_parameters_frame, text="Select Wind Direction:")
+        self.select_wind_direction_label.pack(pady=(10, 5), anchor="w")
+
+        wind_dir_options = [
+            "N", "NNE", "NE", "ENE",
+            "E", "ESE", "SE", "SSE",
+            "S", "SSW", "SW", "WSW",
+            "W", "WNW", "NW", "NNW"
+        ]
+        default_wind = tk.StringVar(value="N")
+        self.wind_condition.wind_direction = 0
+
+        self.wind_direction_menu = tk.OptionMenu(self.flight_parameters_frame, default_wind, *wind_dir_options,
+                                                 command=self.on_wind_dir_change)
+        self.wind_direction_menu.pack(pady=(0, 10), fill=tk.X)
+
+        # Add label for altitude limit selection
+        self.altitude_limits_label = ttk.Label(self.flight_parameters_frame, text="UAV Altitude Limits (Metres):")
+        self.altitude_limits_label.pack(pady=(5, 5), anchor="w")
+
+        self.altitude_limits_frame = ttk.Frame(self.flight_parameters_frame)
+        self.altitude_limits_frame.pack(pady=(0, 10), fill=tk.X)
+
+        for i in range(3):
+            self.altitude_limits_frame.rowconfigure(i, weight=1)
+        for i in range(2):
+            self.altitude_limits_frame.columnconfigure(i, weight=1)
+
+        self.min_altitude_label = ttk.Label(self.altitude_limits_frame, text="Min Limit:")
+        self.min_altitude_label.grid(row=0, column=0, sticky="ew", padx=2)
+
+        self.max_altitude_label = ttk.Label(self.altitude_limits_frame, text="Max Limit:")
+        self.max_altitude_label.grid(row=0, column=1, sticky="ew", padx=2)
+
+        self.min_altitude_box = ttk.Entry(self.altitude_limits_frame, textvariable=self.min_altitude_var, width=15)
+        self.min_altitude_box.grid(row=1, column=0, sticky="ew", padx=2)
+
+        self.max_altitude_box = ttk.Entry(self.altitude_limits_frame, textvariable=self.max_altitude_var, width=15)
+        self.max_altitude_box.grid(row=1, column=1, sticky="ew", padx=2)
+
+        self.set_altitude_limits_button = ttk.Button(self.altitude_limits_frame, text="Set altitude limits",
+                                                     command=self.set_altitude_limits)
+        self.set_altitude_limits_button.grid(row=2, column=0, columnspan=2, sticky="ew", padx=2)
+
+    def on_wind_dir_change(self, direction):
+        direction_map = {
+            "N": 0,
+            "NNE": math.pi / 8,
+            "NE": math.pi / 4,
+            "ENE": 3 * math.pi / 8,
+            "E": math.pi / 2,
+            "ESE": 5 * math.pi / 8,
+            "SE": 3 * math.pi / 4,
+            "SSE": 7 * math.pi / 8,
+            "S": math.pi,
+            "SSW": 9 * math.pi / 8,
+            "SW": 5 * math.pi / 4,
+            "WSW": 11 * math.pi / 8,
+            "W": 3 * math.pi / 2,
+            "WNW": 13 * math.pi / 8,
+            "NW": 7 * math.pi / 4,
+            "NNW": 15 * math.pi / 8,
+        }
+        wind_angle_rad = direction_map[direction]
+        self.wind_condition.wind_direction = wind_angle_rad
+
+    def set_altitude_limits(self):
+        min_alt = self.min_altitude_var.get()
+        max_alt = self.max_altitude_var.get()
+        # Check for empty values
+        if not min_alt or not max_alt:
+            messagebox.showwarning("Altitude Limits Selection",
+                                   "One or both altitude limits not set. Please enter a value.")
+            return
+
+        # Check for numeric values
+        try:
+            min_alt = float(min_alt)
+            max_alt = float(max_alt)
+        except ValueError:
+            messagebox.showwarning("Altitude Limits Selection",
+                                   "Altitude limits must be valid numbers.")
+            return
+
+        self.uav_altitude_limits.min_altitude = min_alt
+        self.uav_altitude_limits.max_altitude = max_alt
 
     def setup_drawing_modes(self):
         # Add label for drawing mode section
@@ -222,24 +368,51 @@ class PathPlannerGUI:
     def update_message_box_width(self, event):
         self.waypoint_marker_messagebox.config(width=event.width)
 
+    def setup_elevation_profile(self):
+        self.elevation_profile_frame = ttk.Frame(self.right_bottom_frame)
+        self.elevation_profile_frame.rowconfigure(0, weight=1)
+        self.elevation_profile_frame.columnconfigure(0, weight=1)
+        self.elevation_profile_frame.pack(pady=(0, 10), fill=tk.X)
+
+        self.elevation_title_label = ttk.Label(self.elevation_profile_frame, text="Elevation Profile",
+                                               font=("Arial", 12, "bold"))
+        self.elevation_title_label.pack(pady=(5, 5), anchor="w")
+        self.elevation_graph_frame = ttk.Frame(self.elevation_profile_frame)
+        self.elevation_graph_frame.pack(pady=(0, 10), fill=tk.X)
+
+        self.elevation_profile_figure = Figure(figsize=(6, 2.5), dpi=50)
+
+        self.elevation_canvas = FigureCanvasTkAgg(self.elevation_profile_figure, master=self.elevation_graph_frame)
+        self.elevation_canvas.draw()
+
+        self.elevation_canvas_toolbar = NavigationToolbar2Tk(self.elevation_canvas, self.elevation_graph_frame)
+        self.elevation_canvas_toolbar.update()
+
+        self.elevation_canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
+
     def setup_algorithm_modes(self):
         self.calculate_shortest_path_button = None
         self.choose_waypoints_button = None
         self.plot_waypoints_button = None
 
-        self.algorithm_title_label = ttk.Label(self.right_bottom_frame, text="Algorithm Parameters",
+        self.algorithm_modes_frame = ttk.Frame(self.right_bottom_frame)
+        self.algorithm_modes_frame.rowconfigure(1, weight=1)
+        self.algorithm_modes_frame.columnconfigure(0, weight=1)
+        self.algorithm_modes_frame.pack(pady=(0, 10), fill=tk.X)
+
+        self.algorithm_title_label = ttk.Label(self.algorithm_modes_frame, text="Algorithm Parameters",
                                                font=("Arial", 12, "bold"))
         self.algorithm_title_label.pack(pady=(5, 5), anchor="w")
 
-        self.calculate_shortest_path_button = ttk.Button(self.right_bottom_frame, text="Calculate shortest path",
-                                                         command=self.test_PathPlanner2D)
+        self.calculate_shortest_path_button = ttk.Button(self.algorithm_modes_frame, text="Calculate shortest path",
+                                                         command=self.calculate_uav_flight_path_2d)
         self.calculate_shortest_path_button.pack(side=tk.TOP, fill=tk.X, padx=5, pady=2)
 
-        self.choose_waypoints_button = ttk.Button(self.right_bottom_frame, text="Import existing waypoints",
+        self.choose_waypoints_button = ttk.Button(self.algorithm_modes_frame, text="Import existing waypoints",
                                                   command=self.data_handler.import_waypoints)
         self.choose_waypoints_button.pack(side=tk.TOP, fill=tk.X, padx=5, pady=2)
 
-        self.plot_waypoints_button = ttk.Button(self.right_bottom_frame, text="Plot waypoints",
+        self.plot_waypoints_button = ttk.Button(self.algorithm_modes_frame, text="Plot waypoints",
                                                 command=self.plot_waypoints)
         self.plot_waypoints_button.pack(side=tk.TOP, fill=tk.X, padx=5, pady=2)
 
@@ -268,6 +441,18 @@ class PathPlannerGUI:
 
         self.map_widget.set_position(location.latitude, location.longitude)
         self.map_widget.set_zoom(map_zoom)
+
+    def set_start_position(self, coords):
+        elevation_at_coord = self.elevation_data.get_elevation(coords[0], coords[1])
+        new_marker = self.map_widget.set_marker(coords[0], coords[1], text=f'Start Position',
+                                                marker_color_circle="white", marker_color_outside="green")
+        self.start_pos = ppstruct.Marker(new_marker, coords[0], coords[1], elevation_at_coord)
+
+    def set_goal_position(self, coords):
+        elevation_at_coord = self.elevation_data.get_elevation(coords[0], coords[1])
+        new_marker = self.map_widget.set_marker(coords[0], coords[1], text=f'Goal Position',
+                                                marker_color_circle="white", marker_color_outside="red")
+        self.goal_pos = ppstruct.Marker(new_marker, coords[0], coords[1], elevation_at_coord)
 
     def on_map_click(self, coords):
         if self.mode == "line":
@@ -322,6 +507,9 @@ class PathPlannerGUI:
         self.markers.clear()
         self.marker_positions.clear()
         self.waypoint_message_var.set("")
+        self.elevation_profile_figure.clf()
+        self.elevation_canvas.draw()
+        self.elevation_canvas_toolbar.update()
 
     def save_polygon(self):
         if not self.polygons:
@@ -333,10 +521,10 @@ class PathPlannerGUI:
 
     def add_marker_event(self, coords):
         print("Add marker:", coords)
-        elevation_data = srtm.get_data()
-        elevation_at_coord = elevation_data.get_elevation(coords[0], coords[1])
+        elevation_at_coord = self.elevation_data.get_elevation(coords[0], coords[1])
         new_marker = self.map_widget.set_marker(coords[0], coords[1], text=f'Elevation = {elevation_at_coord}m')
-        image = elevation_data.get_image((1080, 1080), (coords[0]-0.1, coords[0]+0.1), (coords[1]-0.1, coords[1]+0.1), 1300)
+        image = self.elevation_data.get_image((1080, 1080), (coords[0] - 0.1, coords[0] + 0.1),
+                                              (coords[1] - 0.1, coords[1] + 0.1), 1300)
         # the image is a standard PIL object, you can save or show it:
         image.show()
 
@@ -367,6 +555,156 @@ class PathPlannerGUI:
             index += 1
 
         self.map_widget.set_path(waypoints)
+
+    def calculate_uav_flight_path(self):
+        if not self.polygons:
+            messagebox.showinfo("Shortest Path Area Selection",
+                                "No polygon/area on map selected, please plot one first.")
+            return
+
+        latitudes = []
+        longitudes = []
+        altitudes = []
+
+        resulting_markers = []
+        resulting_markers_positions = []
+        resulting_altitudes = []
+
+        for coord in self.polygons[-1]:
+            latitudes.append(coord[0])
+            longitudes.append(coord[1])
+            elevation_at_coord = self.elevation_data.get_elevation(coord[0], coord[1])
+            altitudes.append(elevation_at_coord)
+
+        polygon_vertices_waypoints = latitudes + longitudes + altitudes
+        polygon_verticesIn = matlab.double(polygon_vertices_waypoints, size=(len(latitudes), 3))
+
+        # polygon_verticesIn = matlab.double(
+        #     [53.950974807525206, 53.946024591620926, 53.945898302917456, 53.95089904334211, 53.950974807525206,
+        #      -1.0329672619323844, -1.033224753997814, -1.0243412777404899, -1.0251566692810172, -1.0329672619323844,
+        #      50.0, 50.0, 50.0, 50.0, 50.0], size=(5, 3))
+        coordinate_pathOut, dubins_path_waypointsOut = self.my_tsp_solver.setupTSP(polygon_verticesIn, nargout=2)
+        # print(coordinate_pathOut, dubins_path_waypointsOut, sep='\n')
+
+        for i, coord in enumerate(coordinate_pathOut):
+            if i == 0:
+                marker = self.map_widget.set_marker(coord[0], coord[1], text=f"Start Position",
+                                                    marker_color_circle="white", marker_color_outside="green")
+            elif i == len(coordinate_pathOut) - 1:
+                marker = self.map_widget.set_marker(coord[0], coord[1], text=f"End Position",
+                                                    marker_color_circle="white", marker_color_outside="red")
+            else:
+                marker = self.map_widget.set_marker(coord[0], coord[1], text=f"Marker {i}", marker_color_circle="white",
+                                                    marker_color_outside="blue")
+            resulting_markers.append(marker)
+            resulting_markers_positions.append((coord[0], coord[1]))
+            elevation_at_coord = self.elevation_data.get_elevation(coord[0], coord[1])
+            resulting_altitudes.append(elevation_at_coord)
+        # for i, waypoint in enumerate(dubins_path_waypointsOut):
+        #     if i == 0:
+        #         marker = self.map_widget.set_marker(waypoint[0], waypoint[1], text=f"Start Position", marker_color_circle="white", marker_color_outside="green")
+        #     elif i == len(dubins_path_waypointsOut) - 1:
+        #         marker = self.map_widget.set_marker(waypoint[0], waypoint[1], text=f"End Position", marker_color_circle="white", marker_color_outside="red")
+        #     else:
+        #         marker = self.map_widget.set_marker(waypoint[0], waypoint[1], text=f"Marker {i}", marker_color_circle="white", marker_color_outside="blue")
+        #     resulting_markers.append(marker)
+        #     resulting_markers_positions.append((waypoint[0], waypoint[1]))
+
+        # Draw path if more than one marker
+        if len(resulting_markers_positions) > 1:
+            self.map_widget.set_path(resulting_markers_positions)
+            self.plot_elevation_profile(resulting_altitudes)
+
+    def calculate_uav_flight_path_2d(self):
+
+        if self.start_pos is None:
+            messagebox.showwarning("Start Position", "No start position set, please set it by right clicking.")
+            return
+        if self.goal_pos is None:
+            messagebox.showwarning("Goal Position", "No goal position set, please set it by right clicking.")
+            return
+
+        start_posIn = matlab.double([self.start_pos.latitude, self.start_pos.longitude, self.start_pos.altitude], size=(1, 3))
+        goal_posIn = matlab.double([self.goal_pos.latitude, self.goal_pos.longitude, self.goal_pos.altitude], size=(1, 3))
+
+        latitudes = []
+        longitudes = []
+        altitudes = []
+
+        resulting_markers = []
+        resulting_markers_positions = []
+        resulting_altitudes = []
+
+        # Create transparent image
+        transparent_img = Image.new("RGBA", (1, 1), (255, 255, 255, 0))
+        transparent_tk = ImageTk.PhotoImage(transparent_img)
+
+        for coord in self.polygons[-1]:
+            latitudes.append(coord[0])
+            longitudes.append(coord[1])
+            elevation_at_coord = self.elevation_data.get_elevation(coord[0], coord[1])
+            altitudes.append(elevation_at_coord)
+        # Close the polygon loop
+        coord = self.polygons[-1][0]
+        latitudes.append(coord[0])
+        longitudes.append(coord[1])
+        elevation_at_coord = self.elevation_data.get_elevation(coord[0], coord[1])
+        altitudes.append(elevation_at_coord)
+
+        polygon_vertices_waypoints = latitudes + longitudes + altitudes
+        polygon_verticesIn = matlab.double(polygon_vertices_waypoints, size=(len(latitudes), 3))
+        wind_directionIn = matlab.double([self.wind_condition.wind_direction], size=(1, 1))
+        altitude_limitsIn = {"min": matlab.double([self.uav_altitude_limits.min_altitude], size=(1, 1)),
+                             "max": matlab.double([self.uav_altitude_limits.max_altitude], size=(1, 1))}
+        uav_turning_radiusIn = matlab.double([30.0], size=(1, 1))
+        num_divisionsIn = {"x": matlab.double([12.0], size=(1, 1)), "y": matlab.double([12.0], size=(1, 1)),
+                           "z": matlab.double([3.0], size=(1, 1))}
+        plot_resultsIn = matlab.logical([True], size=(1, 1))
+        coordinate_pathOut, dubins_path_waypointsOut = self.my_tsp_solver.setupTSP(start_posIn, goal_posIn, polygon_verticesIn,
+                                                                            wind_directionIn, altitude_limitsIn,
+                                                                            uav_turning_radiusIn, num_divisionsIn,
+                                                                            plot_resultsIn, nargout=2)
+
+        for i, coord in enumerate(coordinate_pathOut):
+            if i == 0:
+                marker = self.map_widget.set_marker(coord[0], coord[1], text=f"Start Position",
+                                                    marker_color_circle="white", marker_color_outside="green")
+            elif i == len(coordinate_pathOut) - 1:
+                marker = self.map_widget.set_marker(coord[0], coord[1], text=f"End Position",
+                                                    marker_color_circle="white", marker_color_outside="red")
+            else:
+                marker = self.map_widget.set_marker(coord[0], coord[1], text=f"Marker {i}", marker_color_circle="white",
+                                                    marker_color_outside="blue")
+            # resulting_markers.append(marker)
+            # resulting_markers_positions.append((coord[0], coord[1]))
+            # elevation_at_coord = self.elevation_data.get_elevation(coord[0], coord[1])
+            # resulting_altitudes.append(elevation_at_coord)
+
+        for i, waypoint in enumerate(dubins_path_waypointsOut):
+            resulting_markers_positions.append((waypoint[0], waypoint[1]))
+            elevation_at_coord = self.elevation_data.get_elevation(waypoint[0], waypoint[1])
+            resulting_altitudes.append(elevation_at_coord)
+
+        # Draw path if more than one marker
+        if len(resulting_markers_positions) > 1:
+            self.map_widget.set_path(resulting_markers_positions)
+            self.plot_elevation_profile(resulting_altitudes)
+
+
+    def plot_elevation_profile(self, altitudes):
+        self.elevation_profile_figure.clf()
+        subplot = self.elevation_profile_figure.add_subplot(111)
+        x = list(range(len(altitudes)))  # X-axis: index or distance
+        subplot.plot(x, altitudes, label='Elevation', marker='o', linestyle='-', color='blue', markersize=4)
+        subplot.set_title("Elevation Profile")
+        subplot.set_xlabel("Distance")
+        subplot.set_ylabel("Altitude (m)")
+        subplot.grid(True)
+        subplot.legend()
+
+        self.elevation_canvas.draw()
+
+        self.elevation_canvas_toolbar.update()
 
     def test_PathPlanner2D(self):
         if not self.polygons:
