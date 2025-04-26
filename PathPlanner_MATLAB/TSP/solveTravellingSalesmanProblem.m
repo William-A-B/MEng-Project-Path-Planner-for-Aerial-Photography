@@ -344,6 +344,34 @@ function [departure_dir, arrival_dir] = calculate_directions(coord1, coord2)
     arrival_dir = atan2(direction_vector(2), direction_vector(1));
 end
 
+function [departure_dir, arrival_dir] = calculate_directions_3d(coord1, coord2)
+    %CALCULATE_DIRECTIONS Computes the heading angles between two positions 
+    % for use in defining Dubins path entry and exit directions.
+
+    % Calculate direction vector between two coordiantes
+    dir_vec = coord2 - coord1;
+
+    % Calculate x-y plane projection
+    horizontal_dist = hypot(dir_vec(1), dir_vec(2));
+
+    % Azimuthal angle: angle in the x-y plane
+    azimuth = atan2(dir_vec(2), dir_vec(1));
+
+    % Angle of elevation
+    elevation_angle = atan2(vec(3), horizontal_dist);
+    
+    % Departure direction from coord1 to coord2
+    departure_dir = [azimuth, elevation_angle];
+
+    % Reverse vector for arrival direction
+    vec_rev = -vec;
+    horiz_dist_rev = hypot(vec_rev(1), vec_rev(2));
+    azimuth_rev = atan2(vec_rev(2), vec_rev(1));
+    elevation_rev = atan2(vec_rev(3), horiz_dist_rev);
+    
+    arrival_dir = [azimuth_rev, elevation_rev];
+end
+
 function [path_segment, path_cost] = calculate_dubins_connection(previous_pos, current_pos, next_pos, uav_turning_radius)
     %CALCULATE_DUBINS_CONNECTION Generates a Dubins path segment between two 
     % poses, considering turning radius and heading angles.
