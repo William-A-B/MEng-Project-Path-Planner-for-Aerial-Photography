@@ -390,6 +390,11 @@ function [path_segment, path_cost] = calculate_dubins_connection(previous_pos, c
     path_cost = pathCosts;
 end
 
+function [path_segment, path_cost] = calculate_dubins_connection_3d(previous_pos, current_pos, next_pos, uav_turning_radius)
+    path_segment = 0;
+    path_cost = 0;
+end
+
 function [path_segment, path_cost, new_next_pos] = calculate_optimised_dubins_connection(coordinate_waypoints, previous_pos, current_pos, next_pos, uav_turning_radius)
     %CALCULATE_OPTIMISED_DUBINS_CONNECTION Evaluates all 4 candidates in the 
     % target 2x2 imaging grid and chooses the one yielding the lowest Dubins cost.
