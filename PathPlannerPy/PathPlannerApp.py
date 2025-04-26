@@ -6,6 +6,7 @@ from time import sleep
 import PathPlannerDataStorage as ppds
 import PathPlannerGUI as ppgui
 from TSPSolver import TSPSolver
+from PathPlannerTSPSolver_2D import setupTSP
 from tkinter import messagebox
 
 
@@ -26,7 +27,8 @@ def main():
     # messagebox.showinfo("Path Planner Application", "Starting Path Planner application, press ok to continue")
 
     # Initialise TSPSolver Object
-    my_tsp_solver = TSPSolver.initialize()
+    # my_tsp_solver = TSPSolver.initialize()
+    my_tsp_solver = setupTSP.initialize()
 
     root_tk = tk.Tk()
     app = PathPlannerApp(root_tk, my_tsp_solver)
