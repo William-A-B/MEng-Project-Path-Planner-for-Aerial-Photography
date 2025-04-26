@@ -390,9 +390,22 @@ function [path_segment, path_cost] = calculate_dubins_connection(previous_pos, c
     path_cost = pathCosts;
 end
 
-function [path_segment, path_cost] = calculate_dubins_connection_3d(previous_pos, current_pos, next_pos, uav_turning_radius)
-    path_segment = 0;
-    path_cost = 0;
+function [path_segment, path_cost] = calculate_dubins_connection_3d(previous_pos, current_pos, next_pos, uav_turning_radius, uav_airspeed)
+    
+    dubConnObj = uavDubinsConnection;
+    dubConnObj.MaxRollAngle = computeMaxRollAngle(uav_turning_radius, uav_airspeed);
+
+    [~, prev_arrival_dir] = calculate_directions_3d(previous_pos, current_pos);
+    [~, next_arrival_dir] = calculate_directions_3d(current_pos, next_pos);
+    
+    % Index 1 to use azimuth angle (x-y plane angle)
+    start_pose = [current_pos, prev_arrival_dir(1)];
+    goal_pose = [next_pos, next_arrival_dir(1)];
+
+    [pathSegObj, pathCosts] = connect(dubConnObj, start_pose, goal_pose);
+    
+    path_segment = pathSegObj;
+    path_cost = pathCosts;
 end
 
 function [path_segment, path_cost, new_next_pos] = calculate_optimised_dubins_connection(coordinate_waypoints, previous_pos, current_pos, next_pos, uav_turning_radius)
@@ -430,6 +443,23 @@ function [path_segment, path_cost, new_next_pos] = calculate_optimised_dubins_co
             new_next_pos = current_next_pos;
         end
     end
+end
+
+function rollAngleRad = computeMaxRollAngle(turnRadius, airspeed)
+    % computeMaxRollAngle calculates the maximum roll angle (in degrees)
+    % required for a given minimum turning radius and airspeed
+    %
+    % Inputs:
+    %   turnRadius - minimum turning radius in meters
+    %   airspeed   - true airspeed in m/s
+    %
+    % Output:
+    %   maxRollAngleDeg - maximum roll angle in degrees
+
+    g = 9.81; % gravitational acceleration in m/s^2
+
+    % Compute roll angle in radians
+    rollAngleRad = atan((airspeed^2) / (g * turnRadius));
 end
 
 function coordinate_waypoints_3d = setup_elevation_data(coordinate_waypoints_2d)
