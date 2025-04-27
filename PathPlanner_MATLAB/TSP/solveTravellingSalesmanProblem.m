@@ -299,6 +299,19 @@ function [minVal, minIndex] = calculate_closest_position_3d(coordinate_points, c
     minVal = adjusted_cost(minIndex);  % Return the adjusted cost for that coordinate
 end
 
+function uav_cost = calculate_flight_path_cost(coordinate_points, current_pos, target_pos, wind_direction)
+    global max_climb_angle;
+    global max_climb_rate;
+    global num_div_z;
+
+    slope_angle = atan2(current_pos(3), target_pos(3));
+    if slope_angle > max_climb_angle
+        uav_cost = inf;
+        return
+    end
+    
+end
+
 function [starting_coordinate, start_coord_index] = update_start_pos_with_wind_compensation(start_pos, wind_direction, coordinate_waypoints)
     %UPDATE_START_POS_WITH_WIND_COMPENSATION Picks the furtest position
     % downwind from the actual start position to minimize headwind movement.
@@ -398,7 +411,7 @@ function [departure_dir, arrival_dir] = calculate_directions_3d(coord1, coord2)
     departure_dir = [azimuth, elevation_angle];
 
     % Reverse vector for arrival direction
-    vec_rev = -dir_vec;
+    vec_rev = dir_vec;
     horiz_dist_rev = hypot(vec_rev(1), vec_rev(2));
     azimuth_rev = atan2(vec_rev(2), vec_rev(1));
     elevation_rev = atan2(vec_rev(3), horiz_dist_rev);

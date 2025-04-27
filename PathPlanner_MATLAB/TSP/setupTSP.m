@@ -66,6 +66,7 @@ function [coordinate_path, dubins_path_waypoints] = setupTSP(start_pos, goal_pos
     [coordinate_path, dubins_path_collection] = solveTravellingSalesmanProblem(start_pos_utm, goal_pos_utm, cuboid_corners, wind_direction, uav_turning_radius, num_divisions_z);
     if plot_results
         display_results(start_pos_utm, goal_pos_utm, wind_direction, square_size(:, 1:2), square_centres, cuboid_corners, coordinate_path, dubins_path_collection, false);
+        display_results_clean(start_pos_utm, goal_pos_utm, wind_direction, square_size(:, 1:2), square_centres, cuboid_corners, coordinate_path, dubins_path_collection, false);
     end
     
     dubins_path_waypoints_utm = [];
@@ -228,6 +229,114 @@ function display_results(start_pos, goal_pos, wind_direction, square_size, squar
     % Add legend to clarify the wind direction
     legend('show');
 end
+
+function display_results_clean(start_pos, goal_pos, wind_direction, square_size, square_centres, cuboid_corners, coordinate_path, dubins_paths, is_2d)
+    figure;
+    hold on;
+    grid on;
+
+    % Plot Dubins paths
+    for i = 1:size(dubins_paths, 1)
+        interpStates = interpolate(dubins_paths{i}, linspace(0, dubins_paths{i}.Length, 50));
+        if is_2d
+            plot(interpStates(:,1), interpStates(:,2), 'b-', 'LineWidth', 1.5, 'HandleVisibility', 'off');
+        else
+            plot3(interpStates(:,1), interpStates(:,2), interpStates(:,3), 'b-', 'LineWidth', 1.5, 'HandleVisibility', 'off');
+        end
+    end
+
+    % Wind vector
+    wind_x = sin(wind_direction); 
+    wind_y = cos(wind_direction);
+    arrow_start = start_pos(1, 1:2) - [wind_x, wind_y] * 2;
+    quiver(arrow_start(1), arrow_start(2), wind_x, wind_y, 40, 'k', 'LineWidth', 2, 'MaxHeadSize', 20, 'DisplayName', 'Wind Direction');
+
+    % Plot start/goal
+    if is_2d
+        plot(start_pos(1), start_pos(2), 'go', 'MarkerSize', 10, 'MarkerFaceColor', 'g', 'DisplayName', 'Start Position');
+        plot(goal_pos(1), goal_pos(2), 'ro', 'MarkerSize', 10, 'MarkerFaceColor', 'r', 'DisplayName', 'Goal Position');
+    else
+        plot3(start_pos(1), start_pos(2), start_pos(3), 'go', 'MarkerSize', 10, 'MarkerFaceColor', 'g', 'DisplayName', 'Start Position');
+        plot3(goal_pos(1), goal_pos(2), goal_pos(3), 'ro', 'MarkerSize', 10, 'MarkerFaceColor', 'r', 'DisplayName', 'Goal Position');
+    end
+
+    % Determine altitude-to-color mapping
+    if ~is_2d
+        unique_z = unique(round(coordinate_path(:,3), 3));  % rounded Zs
+        cmap = jet(length(unique_z));  % Blue → Green → Yellow → Red
+        z_to_color = containers.Map('KeyType', 'double', 'ValueType', 'any');
+        for i = 1:length(unique_z)
+            z_to_color(unique_z(i)) = cmap(i,:);
+        end
+    end
+
+    % Proximity threshold
+    proximity_thresh = max(square_size) / 2;
+
+    % Plot colored squares
+    if is_2d
+        for i = 1:size(square_centres, 1)
+            center = square_centres(i, 1:2);
+            distances = vecnorm(coordinate_path(:, 1:2) - center, 2, 2);
+            if any(distances < proximity_thresh)
+                bottom_left = center - square_size / 4;
+                rectangle('Position', [bottom_left, square_size/2], 'EdgeColor', 'c', 'LineWidth', 1);
+            end
+        end
+    else
+        for i = 1:size(square_centres, 1)
+            center = square_centres(i, :);
+            z = round(center(3), 3);
+            z_match = abs(coordinate_path(:,3) - z) < 1e-3;
+            xy_dist = vecnorm(coordinate_path(:, 1:2) - center(1:2), 2, 2);
+            if any(xy_dist(z_match) < proximity_thresh)
+                color = z_to_color(z);
+                bottom_left = center(1:2) - square_size(1:2)/4;
+                plot3([bottom_left(1), bottom_left(1)+square_size(1)/2, bottom_left(1)+square_size(1)/2, bottom_left(1), bottom_left(1)], ...
+                      [bottom_left(2), bottom_left(2), bottom_left(2)+square_size(2)/2, bottom_left(2)+square_size(2)/2, bottom_left(2)], ...
+                      repmat(z, 1, 5), 'Color', color, 'LineWidth', 1, 'HandleVisibility', 'off');
+            end
+        end
+    end
+
+    % Plot colored cuboid corners
+    if is_2d
+        distances = pdist2(coordinate_path(:, 1:2), cuboid_corners(:, 1:2));
+        relevant = any(distances < proximity_thresh, 1);
+        scatter(cuboid_corners(relevant,1), cuboid_corners(relevant,2), 20, 'filled', 'b', 'DisplayName', 'Imaging Positions');
+    else
+        for i = 1:size(cuboid_corners, 1)
+            corner = cuboid_corners(i, :);
+            z = round(corner(3), 3);
+            z_match = abs(coordinate_path(:,3) - z) < 1e-3;
+            xy_dist = vecnorm(coordinate_path(:,1:2) - corner(1:2), 2, 2);
+            if any(xy_dist(z_match) < proximity_thresh)
+                color = z_to_color(z);
+                scatter3(corner(1), corner(2), corner(3), 40, 'filled', 'MarkerEdgeColor', color, 'MarkerFaceColor', color, 'HandleVisibility', 'off');
+            end
+        end
+    end
+
+    % Plot original path
+    if is_2d
+        plot(coordinate_path(:,1), coordinate_path(:,2), 'r--o', 'LineWidth', 1.5, 'MarkerSize', 5, 'DisplayName', 'Original Path');
+    else
+        plot3(coordinate_path(:,1), coordinate_path(:,2), coordinate_path(:,3), ...
+              'r--o', 'LineWidth', 1.5, 'MarkerSize', 5, 'DisplayName', 'Original Path');
+    end
+
+    if ~is_2d
+        colormap(jet(length(unique_z)));
+        caxis([min(unique_z), max(unique_z)]);
+        colorbar('Ticks', linspace(min(unique_z), max(unique_z), 5), ...
+                 'TickLabels', round(linspace(min(unique_z), max(unique_z), 5)));
+    end
+
+    legend('show');
+end
+
+
+
 
 function display_initial_coordinate_grid(polygon_vertices_utm, grid_waypoints, valid_grid_waypoints)
     % Plot the polygon
