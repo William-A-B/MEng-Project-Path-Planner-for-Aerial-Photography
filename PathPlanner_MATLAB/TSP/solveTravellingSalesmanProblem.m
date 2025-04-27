@@ -43,32 +43,37 @@ function [coordinate_path, dubins_path_collection] = solveTravellingSalesmanProb
     global num_div_z;
     num_div_z = num_divisions_z;
 
+    uav_airspeed = 20;
+
     num_2d_coordinates = size(coordinate_waypoints, 1) / 3;
 
     start_pos_2d = start_pos(1, 1:2);
     goal_pos_2d = goal_pos(1, 1:2);
     coordinate_waypoints_2d = coordinate_waypoints(1:num_2d_coordinates, 1:2);
 
+    start_pos = start_pos;
+    goal_pos = goal_pos;
+    coordinate_waypoints = coordinate_waypoints;
 
     dubins_path_collection = [];
 
     % Number of coordinates to explore
-    num_imaging_locations = size(coordinate_waypoints_2d, 1)/4;
-    unexplored_coordinate_points = coordinate_waypoints_2d;
+    num_imaging_locations = size(coordinate_waypoints, 1)/(4*num_div_z);
+    unexplored_coordinate_points = coordinate_waypoints;
     % Initialise path variable
-    coordinate_path = zeros(num_imaging_locations+2, 2);
-    coordinate_path(1, :) = start_pos_2d;
+    coordinate_path = zeros(num_imaging_locations+2, 3);
+    coordinate_path(1, :) = start_pos;
 
-    [starting_coordinate, start_coord_index] = update_start_pos_with_wind_compensation(start_pos_2d, wind_direction, coordinate_waypoints_2d);
+    [starting_coordinate, start_coord_index] = update_start_pos_with_wind_compensation(start_pos, wind_direction, coordinate_waypoints);
 
-    prev_pos = start_pos_2d;
-    current_pos = start_pos_2d;
+    prev_pos = start_pos;
+    current_pos = start_pos;
     next_pos = starting_coordinate;
 
-    [dubins_path_segment, ~] = calculate_dubins_connection(prev_pos, current_pos, next_pos, uav_turning_radius);
+    [dubins_path_segment, ~] = calculate_dubins_connection_3d(prev_pos, current_pos, next_pos, uav_turning_radius, uav_airspeed);
 
     coordinate_path(2, :) = next_pos;
-    unexplored_coordinate_points = remove_explored_coordinates(unexplored_coordinate_points, start_coord_index);
+    unexplored_coordinate_points = remove_explored_coordinates_3d(unexplored_coordinate_points, start_coord_index);
     dubins_path_collection = [dubins_path_collection; dubins_path_segment];
 
     % Update current and previous positions
@@ -85,8 +90,8 @@ function [coordinate_path, dubins_path_collection] = solveTravellingSalesmanProb
         end
 
         % Find the next position to move to
-        [~, next_pos_index] = calculate_closest_position(unexplored_coordinate_points, current_pos, wind_direction, true);
-        % [~, next_pos_index] = calculate_closest_position_3d(unexplored_coordinate_points, current_pos, wind_direction, true);
+        % [~, next_pos_index] = calculate_closest_position(unexplored_coordinate_points, current_pos, wind_direction, true);
+        [~, next_pos_index] = calculate_closest_position_3d(unexplored_coordinate_points, current_pos, wind_direction, true);
 
         next_pos = unexplored_coordinate_points(next_pos_index, :);
         % Calculate the midpoint between the current coordinate and next
@@ -95,7 +100,7 @@ function [coordinate_path, dubins_path_collection] = solveTravellingSalesmanProb
         % Check if there is a closer coordinate to the midpoint than the
         % current destination (next_pos), if there is re-route and update
         % next_pos with the new closest position
-        [~, midpoint_index] = calculate_closest_position(unexplored_coordinate_points, next_pos_path_midpoint, wind_direction, false);
+        [~, midpoint_index] = calculate_closest_position_3d(unexplored_coordinate_points, next_pos_path_midpoint, wind_direction, false);
         nearest_coord_midpoint = unexplored_coordinate_points(midpoint_index, :);
         if ~isequal(next_pos, nearest_coord_midpoint)
             next_pos = nearest_coord_midpoint;
@@ -110,7 +115,7 @@ function [coordinate_path, dubins_path_collection] = solveTravellingSalesmanProb
         % can be implemented by doing something similar to
         % calculate_closest_position and adding the wind penalty onto the
         % dubins path cost value.
-        [dubins_path_segment, ~, new_next_pos] = calculate_optimised_dubins_connection(unexplored_coordinate_points, prev_pos, current_pos, next_pos, uav_turning_radius);
+        [dubins_path_segment, ~, new_next_pos] = calculate_optimised_dubins_connection_3d(unexplored_coordinate_points, prev_pos, current_pos, next_pos, uav_turning_radius, uav_airspeed);
 
         % update next position if the dubins path new position is different
         if ~isequal(next_pos, new_next_pos)
@@ -119,7 +124,7 @@ function [coordinate_path, dubins_path_collection] = solveTravellingSalesmanProb
         end
         
         % Remove the found coordinate, so it's not explored again
-        unexplored_coordinate_points = remove_explored_coordinates(unexplored_coordinate_points, next_pos_index);
+        unexplored_coordinate_points = remove_explored_coordinates_3d(unexplored_coordinate_points, next_pos_index);
     
         % Update the coordinate path with the next position
         coordinate_path(loop_index+1, :) = next_pos;
@@ -136,8 +141,8 @@ function [coordinate_path, dubins_path_collection] = solveTravellingSalesmanProb
     end
     % Explored all grid coordinate, calculate dubins path from final
     % coordinate to the goal position.
-    [dubins_path_segment, ~] = calculate_dubins_connection(prev_pos, current_pos, goal_pos_2d, uav_turning_radius);
-    coordinate_path(num_imaging_locations+2, :) = goal_pos_2d;
+    [dubins_path_segment, ~] = calculate_dubins_connection_3d(prev_pos, current_pos, goal_pos, uav_turning_radius, uav_airspeed);
+    coordinate_path(num_imaging_locations+2, :) = goal_pos;
     dubins_path_collection = [dubins_path_collection; dubins_path_segment];
 
 end
@@ -206,7 +211,7 @@ function imaging_area_coordinates = get_image_area_coordinates_3d(coordinate_way
     cuboid_end_index = cuboid_start_index + (num_points_per_cuboid - 1);
 
     % Don't delete anything out of bounds
-    if cuboid_start_index < 1 || cuboid_end_index > size(unexplored_coordinate_points, 1)
+    if cuboid_start_index < 1 || cuboid_end_index > size(coordinate_waypoints, 1)
         warning('Attempting to retrieve points outside array bounds.');
         return;
     end
@@ -244,6 +249,9 @@ function [minVal, minIndex] = calculate_closest_position_3d(coordinate_points, c
     %CALCULATE_CLOSEST_POSITION Finds the nearest coordinate considering both 
     % Euclidean distance and wind influence. Returns index and adjusted cost.
 
+    global num_div_z;
+    num_cuboid_points = 4*num_div_z;
+
     % Extract the 3rd column (elevation) from the coordinate points
     elevations = coordinate_points(:, 3);
         
@@ -270,10 +278,10 @@ function [minVal, minIndex] = calculate_closest_position_3d(coordinate_points, c
     % altitude
     % Get the top 10 smallest distances and their corresponding indices
     [~, sorted_indices] = sort(adjusted_cost);  % Sort the distances in ascending order
-    if size(sorted_indices, 1) < 8
+    if size(sorted_indices, 1) < num_cuboid_points
         closest_indices = sorted_indices(1:end);    % Get indices of top smallest distances
     else
-        closest_indices = sorted_indices(1:8);    % Get indices of top 8 smallest distances
+        closest_indices = sorted_indices(1:num_cuboid_points);    % Get indices of top num_cuboid_points smallest distances
     end
 
     % Extract the top 10 closest coordinates and elevations
@@ -292,6 +300,32 @@ function [minVal, minIndex] = calculate_closest_position_3d(coordinate_points, c
 end
 
 function [starting_coordinate, start_coord_index] = update_start_pos_with_wind_compensation(start_pos, wind_direction, coordinate_waypoints)
+    %UPDATE_START_POS_WITH_WIND_COMPENSATION Picks the furtest position
+    % downwind from the actual start position to minimize headwind movement.
+
+    % Calculate wind vector
+    wind_dx = sin(wind_direction);
+    wind_dy = cos(wind_direction);
+
+    
+    % Vector from start pos to all points
+    Vx = coordinate_waypoints(:, 1) - start_pos(:, 1);
+    Vy = coordinate_waypoints(:, 2) - start_pos(:, 2);
+    
+    % Project coordinate points onto wind direction vector
+    projection = (Vx * wind_dx) + (Vy * wind_dy);
+    
+    % Calculate furthest point downwind
+    [~, downwind_coord_index] = max(projection);
+
+    downwind_coord = coordinate_waypoints(downwind_coord_index, :);
+
+    starting_coordinate = downwind_coord;
+    start_coord_index = downwind_coord_index;
+
+end
+
+function [starting_coordinate, start_coord_index] = update_start_pos_with_wind_compensation_3d(start_pos, wind_direction, coordinate_waypoints)
     %UPDATE_START_POS_WITH_WIND_COMPENSATION Picks the furtest position
     % downwind from the actual start position to minimize headwind movement.
 
@@ -358,13 +392,13 @@ function [departure_dir, arrival_dir] = calculate_directions_3d(coord1, coord2)
     azimuth = atan2(dir_vec(2), dir_vec(1));
 
     % Angle of elevation
-    elevation_angle = atan2(vec(3), horizontal_dist);
+    elevation_angle = atan2(dir_vec(3), horizontal_dist);
     
     % Departure direction from coord1 to coord2
     departure_dir = [azimuth, elevation_angle];
 
     % Reverse vector for arrival direction
-    vec_rev = -vec;
+    vec_rev = -dir_vec;
     horiz_dist_rev = hypot(vec_rev(1), vec_rev(2));
     azimuth_rev = atan2(vec_rev(2), vec_rev(1));
     elevation_rev = atan2(vec_rev(3), horiz_dist_rev);
@@ -434,6 +468,42 @@ function [path_segment, path_cost, new_next_pos] = calculate_optimised_dubins_co
 
         start_pose = [current_pos(:, 1:2), prev_arrival_dir];
         goal_pose = [current_next_pos(:, 1:2), next_arrival_dir];
+
+        [pathSegObj, current_path_cost] = connect(dubConnObj, start_pose, goal_pose);
+
+        if current_path_cost < path_cost
+            path_cost = current_path_cost;
+            path_segment = pathSegObj;
+            new_next_pos = current_next_pos;
+        end
+    end
+end
+
+function [path_segment, path_cost, new_next_pos] = calculate_optimised_dubins_connection_3d(coordinate_waypoints, previous_pos, current_pos, next_pos, uav_turning_radius, uav_airspeed)
+    
+    dubConnObj = uavDubinsConnection;
+    dubConnObj.MaxRollAngle = computeMaxRollAngle(uav_turning_radius, uav_airspeed);
+
+    % Find index of next_pos coordinate and retrieve the 4 imaging
+    % candidates for the cuboid
+    [next_pos_index, ~] = find(ismember(coordinate_waypoints, next_pos, 'rows'));
+    possible_next_coordinates = get_image_area_coordinates_3d(coordinate_waypoints, next_pos_index);
+    
+    % Calculate the arrival direction of the previous path to the current
+    % position.
+    [~, prev_arrival_dir] = calculate_directions_3d(previous_pos, current_pos);
+
+    path_cost = inf;
+    new_next_pos = 0;
+
+    % Loop over all imaging cuboid coordinates, and find the path to the
+    % coordinate with the shortest cost
+    for i = 1:size(possible_next_coordinates, 1)
+        current_next_pos = possible_next_coordinates(i, :);
+        [~, next_arrival_dir] = calculate_directions_3d(current_pos, current_next_pos);
+
+        start_pose = [current_pos, prev_arrival_dir(1)];
+        goal_pose = [current_next_pos, next_arrival_dir(1)];
 
         [pathSegObj, current_path_cost] = connect(dubConnObj, start_pose, goal_pose);
 

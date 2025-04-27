@@ -63,9 +63,9 @@ function [coordinate_path, dubins_path_waypoints] = setupTSP(start_pos, goal_pos
     cuboid_corners = calculate_cuboid_corner_coordinates(valid_imaging_coordinates_real_altitudes, square_size, num_divisions_z);
     
     %% Solve TSP
-    [coordinate_path, dubins_path_collection] = solveTravellingSalesmanProblem(start_pos_utm, goal_pos_utm, square_corners, wind_direction, uav_turning_radius, num_divisions_z);
+    [coordinate_path, dubins_path_collection] = solveTravellingSalesmanProblem(start_pos_utm, goal_pos_utm, cuboid_corners, wind_direction, uav_turning_radius, num_divisions_z);
     if plot_results
-        display_results(start_pos_utm, goal_pos_utm, wind_direction, square_size(:, 1:2), square_centres, square_corners, coordinate_path, dubins_path_collection);
+        display_results(start_pos_utm, goal_pos_utm, wind_direction, square_size(:, 1:2), square_centres, cuboid_corners, coordinate_path, dubins_path_collection, false);
     end
     
     dubins_path_waypoints_utm = [];
@@ -142,7 +142,7 @@ function [coordinate_list] = utm2deg_wrapper(utm_coordinate_list, utmzone)
     coordinate_list = [resulting_lat_coords, resulting_lon_coords, utm_coordinate_list(:, 3)];
 end
 
-function display_results(start_pos, goal_pos, wind_direction, square_size, square_centres, square_corners, coordinate_path, dubins_paths)
+function display_results(start_pos, goal_pos, wind_direction, square_size, square_centres, cuboid_corners, coordinate_path, dubins_paths, is_2d)
     % Display results
     figure;
     hold on;
@@ -153,8 +153,13 @@ function display_results(start_pos, goal_pos, wind_direction, square_size, squar
         % Evaluate pathSegObj to get path states (poses)
         interpStates = interpolate(dubins_paths{i}, linspace(0, dubins_paths{i}.Length, 50));
 
-        % Plot only the path line (fast)
-        plot(interpStates(:,1), interpStates(:,2), 'b-', 'LineWidth', 1.5, 'HandleVisibility', 'off');
+        if is_2d
+            % Plot only the path line (fast)
+            plot(interpStates(:,1), interpStates(:,2), 'b-', 'LineWidth', 1.5, 'HandleVisibility', 'off');
+        else
+            % Plot only the path line (fast)
+            plot3(interpStates(:,1), interpStates(:,2), interpStates(:,3), 'b-', 'LineWidth', 1.5, 'HandleVisibility', 'off');
+        end
     end
     
     % Plot wind direction
@@ -169,26 +174,57 @@ function display_results(start_pos, goal_pos, wind_direction, square_size, squar
     % quiver(arrow_start(1), arrow_start(2), wind_x, wind_y, range(polygon_vertices(:, 1))/5, 'k', 'LineWidth', 2, 'MaxHeadSize', 20, 'DisplayName', 'Wind Direction');
     quiver(arrow_start(1), arrow_start(2), wind_x, wind_y, 40, 'k', 'LineWidth', 2, 'MaxHeadSize', 20, 'DisplayName', 'Wind Direction');
     
-    
-    % Plot start and goal positions
-    plot(start_pos(1), start_pos(2), 'go', 'MarkerSize', 10, 'MarkerFaceColor', 'g', 'DisplayName', 'Start Position'); % Start
-    plot(goal_pos(1), goal_pos(2), 'ro', 'MarkerSize', 10, 'MarkerFaceColor', 'r', 'DisplayName', 'Goal Position'); % Goal
-    
-    % Draw squares at each center position in red
-    num_points = size(square_centres, 1);
-    for i = 1:num_points
-        % Define bottom-left corner of square
-        bottom_left = square_centres(i, 1:2) - square_size / 4;
-        % Draw red square
-        rectangle('Position', [bottom_left, square_size/2], 'EdgeColor', 'c', 'LineWidth', 1);
+    if is_2d
+        % Plot start and goal positions
+        plot(start_pos(1), start_pos(2), 'go', 'MarkerSize', 10, 'MarkerFaceColor', 'g', 'DisplayName', 'Start Position'); % Start
+        plot(goal_pos(1), goal_pos(2), 'ro', 'MarkerSize', 10, 'MarkerFaceColor', 'r', 'DisplayName', 'Goal Position'); % Goal
+    else
+        % Plot start and goal positions
+        plot3(start_pos(1), start_pos(2), start_pos(3), 'go', 'MarkerSize', 10, ...
+            'MarkerFaceColor', 'g', 'DisplayName', 'Start Position');
+        plot3(goal_pos(1), goal_pos(2), goal_pos(3), 'ro', 'MarkerSize', 10, ...
+            'MarkerFaceColor', 'r', 'DisplayName', 'Goal Position');
+    end
+    if is_2d
+        % Draw squares at each center position in red
+        num_points = size(square_centres, 1);
+        for i = 1:num_points
+            % Define bottom-left corner of square
+            bottom_left = square_centres(i, 1:2) - square_size / 4;
+            % Draw red square
+            rectangle('Position', [bottom_left, square_size/2], 'EdgeColor', 'c', 'LineWidth', 1);
+        end
+    else
+        % Plot square centers (flat, constant Z)
+        num_points = size(square_centres, 1);
+        for i = 1:num_points
+            center = square_centres(i, 1:3);
+            bottom_left = center(1:2) - square_size / 4;
+            z = center(3);
+            % Plot as square in XY plane at given Z
+            plot3([bottom_left(1), bottom_left(1)+square_size(1)/2, bottom_left(1)+square_size(1)/2, bottom_left(1), bottom_left(1)], ...
+                  [bottom_left(2), bottom_left(2), bottom_left(2)+square_size(2)/2, bottom_left(2)+square_size(2)/2, bottom_left(2)], ...
+                  repmat(z, 1, 5), 'c-', 'LineWidth', 1, 'HandleVisibility', 'off');
+        end
     end
     
-    % Plot cuboid centres
-    scatter(square_corners(:,1), square_corners(:,2), 20, 'filled', 'b', 'DisplayName', 'Imaging Positions');
+    if is_2d
+        % Plot cuboid centres
+        scatter(cuboid_corners(:,1), cuboid_corners(:,2), 20, 'filled', 'b', 'DisplayName', 'Imaging Positions');
+    else
+        % Plot cuboid corners (imaging positions)
+        scatter3(cuboid_corners(:,1), cuboid_corners(:,2), cuboid_corners(:,3), ...
+                20, 'filled', 'b', 'DisplayName', 'Imaging Positions');
+    end
     
-    
-    plot(coordinate_path(:,1), coordinate_path(:,2), 'r--o', 'LineWidth', 1.5, 'MarkerSize', 5, 'DisplayName', 'Original Path');
-    
+    if is_2d
+        plot(coordinate_path(:,1), coordinate_path(:,2), 'r--o', 'LineWidth', 1.5, 'MarkerSize', 5, 'DisplayName', 'Original Path');
+    else
+        % Plot coordinate path in 3D
+        plot3(coordinate_path(:,1), coordinate_path(:,2), coordinate_path(:,3), ...
+            'r--o', 'LineWidth', 1.5, 'MarkerSize', 5, 'DisplayName', 'Original Path');
+    end
+
     % Add legend to clarify the wind direction
     legend('show');
 end

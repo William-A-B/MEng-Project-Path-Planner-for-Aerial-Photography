@@ -23,8 +23,19 @@ polygon_vertices = [
     53.95375719839131, -1.0404824359104623, 50; % Close the loop
 ];
 
-start_pos = [53.95375719839131, -1.0404824359104623, 50];
-goal_pos = [53.94537235295549, -1.0177802188084115, 50];
+polygon_vertices_terrain = [
+    54.565865, -3.330675, 260;
+    54.566548, -3.321455, 220;
+    54.552204, -3.308473, 160;
+    54.548425, -3.323442, 300;
+    54.565865, -3.330675, 260;
+]
+
+start_pos = [53.95375719839131, -1.0404824359104623, 100];
+goal_pos = [53.94537235295549, -1.0177802188084115, 100];
+
+start_pos_terrain = [54.565865, -3.330675, 260];
+goal_pos_terrain = [54.552204, -3.308473, 160];
 
 wind_direction = -pi/2;
 
@@ -39,4 +50,4 @@ num_divisions.z = 3;
 
 plot_results = true;
 
-[coordinate_path, dubins_path_waypoints] = setupTSP(start_pos, goal_pos, polygon_vertices, wind_direction, altitude_limits, uav_turning_radius, num_divisions, plot_results);
+[coordinate_path, dubins_path_waypoints] = setupTSP(start_pos_terrain, goal_pos_terrain, polygon_vertices_terrain, wind_direction, altitude_limits, uav_turning_radius, num_divisions, plot_results);
