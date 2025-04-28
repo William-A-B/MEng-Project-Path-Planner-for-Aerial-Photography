@@ -8,11 +8,16 @@ polygon_vertices = [
 start_pos = [0, 0, 0];
 goal_pos = [100, 100, 0];
 
+plot_results = true;
+
 
 % Define grid resolution (adjust as needed)
 num_divisions_x = 10;  % Number of divisions along latitude
 num_divisions_y = 10;  % Number of divisions along longitude
 num_divisions_z = 3;  % Number of divisions along altitude
+
+global num_div_z;
+num_div_z = num_divisions_z;
 
 lat_min = min(polygon_vertices(:,1));
 lat_max = max(polygon_vertices(:,1));
@@ -58,11 +63,43 @@ current_pos = [10, 10, 10];
 target_pos = [20, 20, 4];
 wind_direction = 0;
 
-uav_cost = calculate_flight_path_cost(cuboid_corners, current_pos, target_pos, wind_direction);
+uav_cost = calculate_flight_path_cost(current_pos, target_pos, wind_direction, true);
+disp(uav_cost)
+uav_cost = calculate_flight_path_cost(current_pos, target_pos, wind_direction, false);
 disp(uav_cost)
 
+uav_cost = inf;
+lowest_cost_coord_index = 1;
+loop_index = 1;
 
-function uav_cost = calculate_flight_path_cost(coordinate_points, current_pos, target_pos, wind_direction)
+while uav_cost == inf
+    cuboid_area_coordinates = get_image_area_coordinates_3d(cuboid_corners, loop_index);
+
+    for i = 1:size(cuboid_area_coordinates, 1)
+        target_pos = cuboid_area_coordinates(i, :);
+    
+        current_uav_cost = calculate_flight_path_cost(start_pos, target_pos, wind_direction, true);
+    
+        if current_uav_cost < uav_cost
+            uav_cost = current_uav_cost;
+            [new_target_pos_index, ~] = find(ismember(cuboid_corners, target_pos, 'rows'));
+            lowest_cost_coord_index = new_target_pos_index; 
+        end
+    end
+    loop_index = loop_index + 1;
+end
+
+
+disp("UAV COST")
+disp(uav_cost)
+disp("LOWEST COST INDEX")
+disp(lowest_cost_coord_index)
+disp("COORD WITH LOWEST COST")
+disp(cuboid_corners(lowest_cost_coord_index, :))
+
+
+
+function uav_cost = calculate_flight_path_cost(current_pos, target_pos, wind_direction, apply_wind_comp)
     max_climb_angle = 0.5236;
     max_climb_rate = 10;
     global num_div_z;
@@ -83,6 +120,17 @@ function uav_cost = calculate_flight_path_cost(coordinate_points, current_pos, t
         return
     end
 
+    % Calculate x-y plane direction
+    % Compute angle of movement to target point
+    movement_angle = atan2(dx, dy);
+    
+    % Compute absolute angular difference to wind direction
+    angle_diff = abs(wrapToPi(movement_angle - wind_direction));
+    
+    % Weight function: penalize movement along wind, reward perpendicular movement
+    wind_penalty = abs(cos(angle_diff)); % Penalizes alignment with wind
+
+    % Calculate 3 dimensional distance between positions
     pos_distance = sqrt(dx.^2 + dy.^2 + dz.^2);
     
     % Calculate base path cost
@@ -96,12 +144,33 @@ function uav_cost = calculate_flight_path_cost(coordinate_points, current_pos, t
     else
         climb_cost = 0;
     end
-
+    
     % Calculate total cost
-    uav_cost = base_cost + climb_cost;
+    if apply_wind_comp
+        uav_cost = (base_cost + climb_cost) * (1 + (wind_penalty*6));
+    else
+        uav_cost = base_cost + climb_cost;
+    end
 end
 
 
+function imaging_area_coordinates = get_image_area_coordinates_3d(coordinate_waypoints, index)
+    %GET_IMAGE_AREA_COORDINATES_3D Retrieves all corner points of a selected
+    % cuboid associated with a given index from the full coordinate list.
+    global num_div_z;
+    num_points_per_cuboid = num_div_z * 4;
+    cuboid_alignment = mod((index-1), num_points_per_cuboid);
+    cuboid_start_index = index - cuboid_alignment;
+    cuboid_end_index = cuboid_start_index + (num_points_per_cuboid - 1);
+
+    % Don't delete anything out of bounds
+    if cuboid_start_index < 1 || cuboid_end_index > size(coordinate_waypoints, 1)
+        warning('Attempting to retrieve points outside array bounds.');
+        return;
+    end
+    % Remove the full cuboid block
+    imaging_area_coordinates = coordinate_waypoints(cuboid_start_index:cuboid_end_index, :);
+end
 
 
 %% HELPER FUNCTIONS

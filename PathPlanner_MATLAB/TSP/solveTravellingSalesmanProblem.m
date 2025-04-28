@@ -56,6 +56,7 @@ function [coordinate_path, dubins_path_collection] = solveTravellingSalesmanProb
     coordinate_waypoints = coordinate_waypoints;
 
     dubins_path_collection = [];
+    total_path_cost = 0;
 
     % Number of coordinates to explore
     num_imaging_locations = size(coordinate_waypoints, 1)/(4*num_div_z);
@@ -70,7 +71,7 @@ function [coordinate_path, dubins_path_collection] = solveTravellingSalesmanProb
     current_pos = start_pos;
     next_pos = starting_coordinate;
 
-    [dubins_path_segment, ~] = calculate_dubins_connection_3d(prev_pos, current_pos, next_pos, uav_turning_radius, uav_airspeed);
+    [dubins_path_segment, dubins_path_cost] = calculate_dubins_connection_3d(prev_pos, current_pos, next_pos, uav_turning_radius, uav_airspeed);
 
     coordinate_path(2, :) = next_pos;
     unexplored_coordinate_points = remove_explored_coordinates_3d(unexplored_coordinate_points, start_coord_index);
@@ -79,6 +80,8 @@ function [coordinate_path, dubins_path_collection] = solveTravellingSalesmanProb
     % Update current and previous positions
     prev_pos = current_pos;
     current_pos = next_pos;
+
+    total_path_cost = total_path_cost + dubins_path_cost;
 
     loop_index = 2;
     loop_count = 1;
@@ -115,7 +118,7 @@ function [coordinate_path, dubins_path_collection] = solveTravellingSalesmanProb
         % can be implemented by doing something similar to
         % calculate_closest_position and adding the wind penalty onto the
         % dubins path cost value.
-        [dubins_path_segment, ~, new_next_pos] = calculate_optimised_dubins_connection_3d(unexplored_coordinate_points, prev_pos, current_pos, next_pos, uav_turning_radius, uav_airspeed);
+        [dubins_path_segment, dubins_path_cost, new_next_pos] = calculate_optimised_dubins_connection_3d(unexplored_coordinate_points, prev_pos, current_pos, next_pos, uav_turning_radius, uav_airspeed);
 
         % update next position if the dubins path new position is different
         if ~isequal(next_pos, new_next_pos)
@@ -133,6 +136,7 @@ function [coordinate_path, dubins_path_collection] = solveTravellingSalesmanProb
         prev_pos = current_pos;
         current_pos = next_pos;
         dubins_path_collection = [dubins_path_collection; dubins_path_segment];
+        total_path_cost = total_path_cost + dubins_path_cost;
 
         loop_index = loop_index + 1;
         loop_count = loop_count + 1;
@@ -141,10 +145,10 @@ function [coordinate_path, dubins_path_collection] = solveTravellingSalesmanProb
     end
     % Explored all grid coordinate, calculate dubins path from final
     % coordinate to the goal position.
-    [dubins_path_segment, ~] = calculate_dubins_connection_3d(prev_pos, current_pos, goal_pos, uav_turning_radius, uav_airspeed);
+    [dubins_path_segment, dubins_path_cost] = calculate_dubins_connection_3d(prev_pos, current_pos, goal_pos, uav_turning_radius, uav_airspeed);
     coordinate_path(num_imaging_locations+2, :) = goal_pos;
     dubins_path_collection = [dubins_path_collection; dubins_path_segment];
-
+    total_path_cost = total_path_cost + dubins_path_cost
 end
 
 function unexplored_coordinate_points = remove_explored_coordinates(unexplored_coordinate_points, minIndex)
@@ -299,17 +303,62 @@ function [minVal, minIndex] = calculate_closest_position_3d(coordinate_points, c
     minVal = adjusted_cost(minIndex);  % Return the adjusted cost for that coordinate
 end
 
-function uav_cost = calculate_flight_path_cost(coordinate_points, current_pos, target_pos, wind_direction)
-    global max_climb_angle;
-    global max_climb_rate;
+function uav_cost = calculate_flight_path_cost(current_pos, target_pos, wind_direction, apply_wind_comp)
+    %CALCULATE_FLIGHT_PATH_COST Calculates the cost for the UAV to fly
+    % between two three dimensional coordinate points.
+    % Accounts for wind and applies a relative cost.
+
+    max_climb_angle = 0.5236;
+    max_climb_rate = 10;
     global num_div_z;
 
-    slope_angle = atan2(current_pos(3), target_pos(3));
+    base_cost_per_metre = 1;
+    descent_bonus_factor = 0.5;
+    climb_penalty_factor = 2.0;
+
+    % Calculate the 3D distance between points
+    dx = target_pos(1) - current_pos(1);
+    dy = target_pos(2) - current_pos(2);
+    dz = target_pos(3) - current_pos(3);
+
+    % Calculate slope angle from current position to target position
+    slope_angle = atan2(dz, sqrt(dx.^2 + dy.^2));
     if slope_angle > max_climb_angle
         uav_cost = inf;
         return
     end
+
+    % Calculate x-y plane direction
+    % Compute angle of movement to target point
+    movement_angle = atan2(dx, dy);
     
+    % Compute absolute angular difference to wind direction
+    angle_diff = abs(wrapToPi(movement_angle - wind_direction));
+    
+    % Weight function: penalize movement along wind, reward perpendicular movement
+    wind_penalty = abs(cos(angle_diff)); % Penalizes alignment with wind
+
+    % Calculate 3 dimensional distance between positions
+    pos_distance = sqrt(dx.^2 + dy.^2 + dz.^2);
+    
+    % Calculate base path cost
+    base_cost = pos_distance * base_cost_per_metre;
+
+    % Calculate climb/descent cost
+    if slope_angle > 0
+        climb_cost = slope_angle * climb_penalty_factor;
+    elseif slope_angle < 0
+        climb_cost = slope_angle * descent_bonus_factor;
+    else
+        climb_cost = 0;
+    end
+    
+    % Calculate total cost
+    if apply_wind_comp
+        uav_cost = (base_cost + climb_cost) * (1 + (wind_penalty*6));
+    else
+        uav_cost = base_cost + climb_cost;
+    end
 end
 
 function [starting_coordinate, start_coord_index] = update_start_pos_with_wind_compensation(start_pos, wind_direction, coordinate_waypoints)
