@@ -94,7 +94,9 @@ function [coordinate_path, dubins_path_collection] = solveTravellingSalesmanProb
 
         % Find the next position to move to
         % [~, next_pos_index] = calculate_closest_position(unexplored_coordinate_points, current_pos, wind_direction, true);
-        [~, next_pos_index] = calculate_closest_position_3d(unexplored_coordinate_points, current_pos, wind_direction, true);
+        % [~, next_pos_index] = calculate_closest_position_3d(unexplored_coordinate_points, current_pos, wind_direction, true);
+        [next_pos_coord, next_pos_index, next_pos_path_cost] = calculate_closest_position_3d_improved(unexplored_coordinate_points, current_pos, wind_direction, true);
+
 
         next_pos = unexplored_coordinate_points(next_pos_index, :);
         % Calculate the midpoint between the current coordinate and next
@@ -303,6 +305,28 @@ function [minVal, minIndex] = calculate_closest_position_3d(coordinate_points, c
     minVal = adjusted_cost(minIndex);  % Return the adjusted cost for that coordinate
 end
 
+function [closest_coord, closest_coord_index, uav_path_cost] = calculate_closest_position_3d_improved(coordinate_points, current_pos, wind_direction, apply_wind_comp)
+    uav_cost = inf;
+    lowest_cost_coord_index = 1;
+    loop_index = 1;
+    
+    while loop_index <= size(coordinate_points, 1)
+        target_pos = coordinate_points(loop_index, :);
+        
+        current_uav_cost = calculate_flight_path_cost(current_pos, target_pos, wind_direction, apply_wind_comp);
+    
+        if current_uav_cost < uav_cost
+            uav_cost = current_uav_cost;
+            [new_target_pos_index, ~] = find(ismember(coordinate_points, target_pos, 'rows'));
+            lowest_cost_coord_index = new_target_pos_index; 
+        end
+        loop_index = loop_index + 1;
+    end
+    closest_coord_index = lowest_cost_coord_index;
+    closest_coord = coordinate_points(closest_coord_index, :);
+    uav_path_cost = uav_cost;
+end
+
 function uav_cost = calculate_flight_path_cost(current_pos, target_pos, wind_direction, apply_wind_comp)
     %CALCULATE_FLIGHT_PATH_COST Calculates the cost for the UAV to fly
     % between two three dimensional coordinate points.
@@ -333,6 +357,7 @@ function uav_cost = calculate_flight_path_cost(current_pos, target_pos, wind_dir
     movement_angle = atan2(dx, dy);
     
     % Compute absolute angular difference to wind direction
+    
     angle_diff = abs(wrapToPi(movement_angle - wind_direction));
     
     % Weight function: penalize movement along wind, reward perpendicular movement
