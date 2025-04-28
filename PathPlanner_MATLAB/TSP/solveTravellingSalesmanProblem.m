@@ -148,7 +148,7 @@ function [coordinate_path, dubins_path_collection] = solveTravellingSalesmanProb
     [dubins_path_segment, dubins_path_cost] = calculate_dubins_connection_3d(prev_pos, current_pos, goal_pos, uav_turning_radius, uav_airspeed);
     coordinate_path(num_imaging_locations+2, :) = goal_pos;
     dubins_path_collection = [dubins_path_collection; dubins_path_segment];
-    total_path_cost = total_path_cost + dubins_path_cost
+    total_path_cost = total_path_cost + dubins_path_cost;
 end
 
 function unexplored_coordinate_points = remove_explored_coordinates(unexplored_coordinate_points, minIndex)
