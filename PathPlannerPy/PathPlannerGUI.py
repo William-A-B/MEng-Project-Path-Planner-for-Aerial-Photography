@@ -556,65 +556,6 @@ class PathPlannerGUI:
 
         self.map_widget.set_path(waypoints)
 
-    def calculate_uav_flight_path(self):
-        if not self.polygons:
-            messagebox.showinfo("Shortest Path Area Selection",
-                                "No polygon/area on map selected, please plot one first.")
-            return
-
-        latitudes = []
-        longitudes = []
-        altitudes = []
-
-        resulting_markers = []
-        resulting_markers_positions = []
-        resulting_altitudes = []
-
-        for coord in self.polygons[-1]:
-            latitudes.append(coord[0])
-            longitudes.append(coord[1])
-            elevation_at_coord = self.elevation_data.get_elevation(coord[0], coord[1])
-            altitudes.append(elevation_at_coord)
-
-        polygon_vertices_waypoints = latitudes + longitudes + altitudes
-        polygon_verticesIn = matlab.double(polygon_vertices_waypoints, size=(len(latitudes), 3))
-
-        # polygon_verticesIn = matlab.double(
-        #     [53.950974807525206, 53.946024591620926, 53.945898302917456, 53.95089904334211, 53.950974807525206,
-        #      -1.0329672619323844, -1.033224753997814, -1.0243412777404899, -1.0251566692810172, -1.0329672619323844,
-        #      50.0, 50.0, 50.0, 50.0, 50.0], size=(5, 3))
-        coordinate_pathOut, dubins_path_waypointsOut = self.my_tsp_solver.setupTSP(polygon_verticesIn, nargout=2)
-        # print(coordinate_pathOut, dubins_path_waypointsOut, sep='\n')
-
-        for i, coord in enumerate(coordinate_pathOut):
-            if i == 0:
-                marker = self.map_widget.set_marker(coord[0], coord[1], text=f"Start Position",
-                                                    marker_color_circle="white", marker_color_outside="green")
-            elif i == len(coordinate_pathOut) - 1:
-                marker = self.map_widget.set_marker(coord[0], coord[1], text=f"End Position",
-                                                    marker_color_circle="white", marker_color_outside="red")
-            else:
-                marker = self.map_widget.set_marker(coord[0], coord[1], text=f"Marker {i}", marker_color_circle="white",
-                                                    marker_color_outside="blue")
-            resulting_markers.append(marker)
-            resulting_markers_positions.append((coord[0], coord[1]))
-            elevation_at_coord = self.elevation_data.get_elevation(coord[0], coord[1])
-            resulting_altitudes.append(elevation_at_coord)
-        # for i, waypoint in enumerate(dubins_path_waypointsOut):
-        #     if i == 0:
-        #         marker = self.map_widget.set_marker(waypoint[0], waypoint[1], text=f"Start Position", marker_color_circle="white", marker_color_outside="green")
-        #     elif i == len(dubins_path_waypointsOut) - 1:
-        #         marker = self.map_widget.set_marker(waypoint[0], waypoint[1], text=f"End Position", marker_color_circle="white", marker_color_outside="red")
-        #     else:
-        #         marker = self.map_widget.set_marker(waypoint[0], waypoint[1], text=f"Marker {i}", marker_color_circle="white", marker_color_outside="blue")
-        #     resulting_markers.append(marker)
-        #     resulting_markers_positions.append((waypoint[0], waypoint[1]))
-
-        # Draw path if more than one marker
-        if len(resulting_markers_positions) > 1:
-            self.map_widget.set_path(resulting_markers_positions)
-            self.plot_elevation_profile(resulting_altitudes)
-
     def calculate_uav_flight_path_2d(self):
 
         if self.start_pos is None:
@@ -624,8 +565,10 @@ class PathPlannerGUI:
             messagebox.showwarning("Goal Position", "No goal position set, please set it by right clicking.")
             return
 
-        start_posIn = matlab.double([self.start_pos.latitude, self.start_pos.longitude, self.start_pos.altitude], size=(1, 3))
-        goal_posIn = matlab.double([self.goal_pos.latitude, self.goal_pos.longitude, self.goal_pos.altitude], size=(1, 3))
+        start_posIn = matlab.double([self.start_pos.latitude, self.start_pos.longitude, self.start_pos.altitude],
+                                    size=(1, 3))
+        goal_posIn = matlab.double([self.goal_pos.latitude, self.goal_pos.longitude, self.goal_pos.altitude],
+                                   size=(1, 3))
 
         latitudes = []
         longitudes = []
@@ -660,10 +603,12 @@ class PathPlannerGUI:
         num_divisionsIn = {"x": matlab.double([12.0], size=(1, 1)), "y": matlab.double([12.0], size=(1, 1)),
                            "z": matlab.double([3.0], size=(1, 1))}
         plot_resultsIn = matlab.logical([True], size=(1, 1))
-        coordinate_pathOut, dubins_path_waypointsOut = self.my_tsp_solver.setupTSP(start_posIn, goal_posIn, polygon_verticesIn,
-                                                                            wind_directionIn, altitude_limitsIn,
-                                                                            uav_turning_radiusIn, num_divisionsIn,
-                                                                            plot_resultsIn, nargout=2)
+        coordinate_pathOut, dubins_path_waypointsOut = self.my_tsp_solver.setupTSP(start_posIn, goal_posIn,
+                                                                                   polygon_verticesIn,
+                                                                                   wind_directionIn, altitude_limitsIn,
+                                                                                   uav_turning_radiusIn,
+                                                                                   num_divisionsIn,
+                                                                                   plot_resultsIn, nargout=2)
 
         for i, coord in enumerate(coordinate_pathOut):
             if i == 0:
@@ -690,7 +635,6 @@ class PathPlannerGUI:
             self.map_widget.set_path(resulting_markers_positions)
             self.plot_elevation_profile(resulting_altitudes)
 
-
     def plot_elevation_profile(self, altitudes):
         self.elevation_profile_figure.clf()
         subplot = self.elevation_profile_figure.add_subplot(111)
@@ -705,32 +649,4 @@ class PathPlannerGUI:
         self.elevation_canvas.draw()
 
         self.elevation_canvas_toolbar.update()
-
-    def test_PathPlanner2D(self):
-        if not self.polygons:
-            messagebox.showinfo("Shortest Path Area Selection",
-                                "No polygon/area on map selected, please plot one first.")
-            return
-
-        my_PathPlanner2D = PathPlanner2D.initialize()
-        latitudes = []
-        longitudes = []
-
-        for coord in self.polygons[-1]:
-            latitudes.append(coord[0])
-            longitudes.append(coord[1])
-
-        polygon_vertices_waypoints = latitudes + longitudes
-
-        # polygon_verticesIn = matlab.double(
-        #     [53.950974807525206, 53.946024591620926, 53.945898302917456, 53.95089904334211, 53.950974807525206,
-        #      -1.0329672619323844, -1.033224753997814, -1.0243412777404899, -1.0251566692810172, -1.0329672619323844],
-        #     size=(5, 2))
-        polygon_verticesIn = matlab.double(polygon_vertices_waypoints, size=(len(latitudes), 2))
-
-        waypoint_pathOut, square_cornersOut = my_PathPlanner2D.PathPlanner2D(polygon_verticesIn, nargout=2)
-        print(waypoint_pathOut, square_cornersOut, sep='\n')
-
-        sleep(60)
-
-        my_PathPlanner2D.terminate()
+        
