@@ -25,7 +25,7 @@ import srtm
 
 
 class PathPlannerGUI:
-    def __init__(self, root, tsp_solver, data_handler):
+    def __init__(self, root, tsp_solver_2d, tsp_solver_3d, data_handler):
         # Initialise GUI
         self.root = root
         self.root.title("Path Planner Application")
@@ -49,7 +49,8 @@ class PathPlannerGUI:
         self.mode = "none"  # Default mode is none
 
         # Object for calling TSP Solver
-        self.my_tsp_solver = tsp_solver
+        self.my_tsp_solver_2d = tsp_solver_2d
+        self.my_tsp_solver_3d = tsp_solver_3d
 
         # Data Storage
         self.data_handler = data_handler
@@ -125,7 +126,8 @@ class PathPlannerGUI:
 
         self.algorithm_modes_frame = None
         self.algorithm_title_label = None
-        self.calculate_shortest_path_button = None
+        self.calculate_shortest_path_2d_button = None
+        self.calculate_shortest_path_3d_button = None
         self.choose_waypoints_button = None
         self.plot_waypoints_button = None
 
@@ -391,7 +393,7 @@ class PathPlannerGUI:
         self.elevation_canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
 
     def setup_algorithm_modes(self):
-        self.calculate_shortest_path_button = None
+        self.calculate_shortest_path_2d_button = None
         self.choose_waypoints_button = None
         self.plot_waypoints_button = None
 
@@ -404,9 +406,15 @@ class PathPlannerGUI:
                                                font=("Arial", 12, "bold"))
         self.algorithm_title_label.pack(pady=(5, 5), anchor="w")
 
-        self.calculate_shortest_path_button = ttk.Button(self.algorithm_modes_frame, text="Calculate shortest path",
-                                                         command=self.calculate_uav_flight_path_2d)
-        self.calculate_shortest_path_button.pack(side=tk.TOP, fill=tk.X, padx=5, pady=2)
+        self.calculate_shortest_path_2d_button = ttk.Button(self.algorithm_modes_frame,
+                                                            text="Calculate shortest path 2D",
+                                                            command=self.calculate_uav_flight_path_2d)
+        self.calculate_shortest_path_2d_button.pack(side=tk.TOP, fill=tk.X, padx=5, pady=2)
+
+        self.calculate_shortest_path_3d_button = ttk.Button(self.algorithm_modes_frame,
+                                                            text="Calculate shortest path 3D",
+                                                            command=self.calculate_uav_flight_path_3d)
+        self.calculate_shortest_path_3d_button.pack(side=tk.TOP, fill=tk.X, padx=5, pady=2)
 
         self.choose_waypoints_button = ttk.Button(self.algorithm_modes_frame, text="Import existing waypoints",
                                                   command=self.data_handler.import_waypoints)
@@ -557,7 +565,6 @@ class PathPlannerGUI:
         self.map_widget.set_path(waypoints)
 
     def calculate_uav_flight_path_2d(self):
-
         if self.start_pos is None:
             messagebox.showwarning("Start Position", "No start position set, please set it by right clicking.")
             return
@@ -603,12 +610,13 @@ class PathPlannerGUI:
         num_divisionsIn = {"x": matlab.double([12.0], size=(1, 1)), "y": matlab.double([12.0], size=(1, 1)),
                            "z": matlab.double([3.0], size=(1, 1))}
         plot_resultsIn = matlab.logical([True], size=(1, 1))
-        coordinate_pathOut, dubins_path_waypointsOut = self.my_tsp_solver.setupTSP(start_posIn, goal_posIn,
-                                                                                   polygon_verticesIn,
-                                                                                   wind_directionIn, altitude_limitsIn,
-                                                                                   uav_turning_radiusIn,
-                                                                                   num_divisionsIn,
-                                                                                   plot_resultsIn, nargout=2)
+        coordinate_pathOut, dubins_path_waypointsOut = self.my_tsp_solver_2d.setupTSP(start_posIn, goal_posIn,
+                                                                                      polygon_verticesIn,
+                                                                                      wind_directionIn,
+                                                                                      altitude_limitsIn,
+                                                                                      uav_turning_radiusIn,
+                                                                                      num_divisionsIn,
+                                                                                      plot_resultsIn, nargout=2)
 
         for i, coord in enumerate(coordinate_pathOut):
             if i == 0:
@@ -618,7 +626,7 @@ class PathPlannerGUI:
                 marker = self.map_widget.set_marker(coord[0], coord[1], text=f"End Position",
                                                     marker_color_circle="white", marker_color_outside="red")
             else:
-                marker = self.map_widget.set_marker(coord[0], coord[1], text=f"Marker {i}", marker_color_circle="white",
+                marker = self.map_widget.set_marker(coord[0], coord[1], text=f"{i}", marker_color_circle="white",
                                                     marker_color_outside="blue")
             # resulting_markers.append(marker)
             # resulting_markers_positions.append((coord[0], coord[1]))
@@ -633,13 +641,92 @@ class PathPlannerGUI:
         # Draw path if more than one marker
         if len(resulting_markers_positions) > 1:
             self.map_widget.set_path(resulting_markers_positions)
-            self.plot_elevation_profile(resulting_altitudes)
+            self.plot_elevation_profile(resulting_altitudes, [], False)
 
-    def plot_elevation_profile(self, altitudes):
+    def calculate_uav_flight_path_3d(self):
+        if self.start_pos is None:
+            messagebox.showwarning("Start Position", "No start position set, please set it by right clicking.")
+            return
+        if self.goal_pos is None:
+            messagebox.showwarning("Goal Position", "No goal position set, please set it by right clicking.")
+            return
+
+        start_posIn = matlab.double([self.start_pos.latitude, self.start_pos.longitude, self.start_pos.altitude],
+                                    size=(1, 3))
+        goal_posIn = matlab.double([self.goal_pos.latitude, self.goal_pos.longitude, self.goal_pos.altitude],
+                                   size=(1, 3))
+
+        latitudes = []
+        longitudes = []
+        altitudes = []
+
+        resulting_markers_positions = []
+        resulting_altitudes = []
+        uav_altitudes = []
+
+        # Create transparent image
+        transparent_img = Image.new("RGBA", (1, 1), (255, 255, 255, 0))
+        transparent_tk = ImageTk.PhotoImage(transparent_img)
+
+        for coord in self.polygons[-1]:
+            latitudes.append(coord[0])
+            longitudes.append(coord[1])
+            elevation_at_coord = self.elevation_data.get_elevation(coord[0], coord[1])
+            altitudes.append(elevation_at_coord)
+        # Close the polygon loop
+        coord = self.polygons[-1][0]
+        latitudes.append(coord[0])
+        longitudes.append(coord[1])
+        elevation_at_coord = self.elevation_data.get_elevation(coord[0], coord[1])
+        altitudes.append(elevation_at_coord)
+
+        polygon_vertices_waypoints = latitudes + longitudes + altitudes
+        polygon_verticesIn = matlab.double(polygon_vertices_waypoints, size=(len(latitudes), 3))
+        wind_directionIn = matlab.double([self.wind_condition.wind_direction], size=(1, 1))
+        altitude_limitsIn = {"min": matlab.double([self.uav_altitude_limits.min_altitude], size=(1, 1)),
+                             "max": matlab.double([self.uav_altitude_limits.max_altitude], size=(1, 1))}
+        uav_turning_radiusIn = matlab.double([30.0], size=(1, 1))
+        uav_airspeedIn = matlab.double([20.0], size=(1, 1))
+        num_divisionsIn = {"x": matlab.double([12.0], size=(1, 1)), "y": matlab.double([12.0], size=(1, 1)),
+                           "z": matlab.double([3.0], size=(1, 1))}
+        plot_resultsIn = matlab.logical([True], size=(1, 1))
+        coordinate_pathOut, dubins_path_waypointsOut, total_path_costOut = self.my_tsp_solver_3d.setupTSP(
+            start_posIn, goal_posIn, polygon_verticesIn, wind_directionIn, altitude_limitsIn, uav_turning_radiusIn,
+            uav_airspeedIn, num_divisionsIn, plot_resultsIn, nargout=3)
+
+        for i, coord in enumerate(coordinate_pathOut):
+            if i == 0:
+                marker = self.map_widget.set_marker(coord[0], coord[1], text=f"Start Position",
+                                                    marker_color_circle="white", marker_color_outside="green")
+            elif i == len(coordinate_pathOut) - 1:
+                marker = self.map_widget.set_marker(coord[0], coord[1], text=f"End Position",
+                                                    marker_color_circle="white", marker_color_outside="red")
+            else:
+                marker = self.map_widget.set_marker(coord[0], coord[1], text=f"{i}", marker_color_circle="white",
+                                                    marker_color_outside="blue")
+
+        for i, waypoint in enumerate(dubins_path_waypointsOut):
+            resulting_markers_positions.append((waypoint[0], waypoint[1]))
+            elevation_at_coord = self.elevation_data.get_elevation(waypoint[0], waypoint[1])
+            resulting_altitudes.append(elevation_at_coord)
+            uav_altitudes.append(waypoint[2])
+
+        # Draw path if more than one marker
+        if len(resulting_markers_positions) > 1:
+            self.map_widget.set_path(resulting_markers_positions)
+            self.plot_elevation_profile(resulting_altitudes, uav_altitudes, True)
+
+        messagebox.showinfo("UAV Path Cost", f"The total UAV path cost from start to goal is {total_path_costOut}")
+
+    def plot_elevation_profile(self, altitudes, uav_altitudes, plot_uav_altitudes):
         self.elevation_profile_figure.clf()
         subplot = self.elevation_profile_figure.add_subplot(111)
-        x = list(range(len(altitudes)))  # X-axis: index or distance
-        subplot.plot(x, altitudes, label='Elevation', marker='o', linestyle='-', color='blue', markersize=4)
+        alt_x = list(range(len(altitudes)))  # X-axis: index or distance
+        subplot.plot(alt_x, altitudes, label='Elevation', marker='o', linestyle='-', color='blue', markersize=4)
+        if plot_uav_altitudes:
+            uav_alt_x = list(range(len(uav_altitudes)))  # X-axis: index or distance
+            subplot.plot(uav_alt_x, uav_altitudes, label='UAV Altitude', marker='o', linestyle='-', color='red', markersize=4)
+
         subplot.set_title("Elevation Profile")
         subplot.set_xlabel("Distance")
         subplot.set_ylabel("Altitude (m)")
@@ -649,4 +736,3 @@ class PathPlannerGUI:
         self.elevation_canvas.draw()
 
         self.elevation_canvas_toolbar.update()
-        

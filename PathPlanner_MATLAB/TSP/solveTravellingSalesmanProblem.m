@@ -1,4 +1,4 @@
-function [coordinate_path, dubins_path_collection] = solveTravellingSalesmanProblem(start_pos, goal_pos, coordinate_waypoints, wind_direction, uav_turning_radius, num_divisions_z)
+function [coordinate_path, dubins_path_collection, total_path_cost] = solveTravellingSalesmanProblem(start_pos, goal_pos, coordinate_waypoints, wind_direction, uav_turning_radius, uav_airspeed, num_divisions_z)
 %SOLVETRAVELLINGSALESMANPROBLEM Solves a TSP problem with Dubins path constraints and wind-aware navigation.
 % 
 %   [coordinate_path, dubins_path_collection] = solveTravellingSalesmanProblem(start_pos, goal_pos, coordinate_waypoints, wind_direction)
@@ -42,8 +42,6 @@ function [coordinate_path, dubins_path_collection] = solveTravellingSalesmanProb
 
     global num_div_z;
     num_div_z = num_divisions_z;
-
-    uav_airspeed = 20;
 
     num_2d_coordinates = size(coordinate_waypoints, 1) / 3;
 
@@ -95,7 +93,7 @@ function [coordinate_path, dubins_path_collection] = solveTravellingSalesmanProb
         % Find the next position to move to
         % [~, next_pos_index] = calculate_closest_position(unexplored_coordinate_points, current_pos, wind_direction, true);
         % [~, next_pos_index] = calculate_closest_position_3d(unexplored_coordinate_points, current_pos, wind_direction, true);
-        [next_pos_coord, next_pos_index, next_pos_path_cost] = calculate_closest_position_3d_improved(unexplored_coordinate_points, current_pos, wind_direction, true);
+        [next_pos_coord, next_pos_index, next_pos_path_cost] = calculate_closest_position_3d_heuristics(unexplored_coordinate_points, current_pos, wind_direction, true);
 
 
         next_pos = unexplored_coordinate_points(next_pos_index, :);
@@ -105,7 +103,7 @@ function [coordinate_path, dubins_path_collection] = solveTravellingSalesmanProb
         % Check if there is a closer coordinate to the midpoint than the
         % current destination (next_pos), if there is re-route and update
         % next_pos with the new closest position
-        [~, midpoint_index] = calculate_closest_position_3d(unexplored_coordinate_points, next_pos_path_midpoint, wind_direction, false);
+        [~, midpoint_index] = calculate_closest_position_3d_heuristics(unexplored_coordinate_points, next_pos_path_midpoint, wind_direction, false);
         nearest_coord_midpoint = unexplored_coordinate_points(midpoint_index, :);
         if ~isequal(next_pos, nearest_coord_midpoint)
             next_pos = nearest_coord_midpoint;
@@ -327,18 +325,95 @@ function [closest_coord, closest_coord_index, uav_path_cost] = calculate_closest
     uav_path_cost = uav_cost;
 end
 
+function [closest_coord, closest_coord_index, uav_path_cost] = calculate_closest_position_3d_heuristics(coordinate_points, current_pos, wind_direction, apply_wind_comp)
+    uav_cost = inf;
+    lowest_cost_coord_index = 1;
+    loop_index = 1;
+    
+    while loop_index <= size(coordinate_points, 1)
+        target_pos = coordinate_points(loop_index, :);
+        
+        current_uav_cost = calculate_flight_path_cost(current_pos, target_pos, wind_direction, apply_wind_comp);
+    
+        if current_uav_cost < uav_cost
+            uav_cost = current_uav_cost;
+            lowest_cost_coord = target_pos;
+            lowest_cost_coord_index = loop_index; 
+        end
+        loop_index = loop_index + 1;
+    end
+
+    % Apply heuristics
+    next_uav_cost = inf;
+    loop_index = 1;
+    new_current_pos = lowest_cost_coord;
+    new_current_pos_index = lowest_cost_coord_index;
+
+    % Get cuboid points of the first closest point
+    closest_coord_cuboid = get_image_area_coordinates_3d(coordinate_points, new_current_pos_index);
+
+    % Iterate through all possible second-step candidates
+    for i = 1:size(coordinate_points, 1)
+        % Get second target position
+        second_target_pos = coordinate_points(i, :);
+
+        % Skip if second position is equal to previous closest position or
+        % same cuboid
+        if ismember(closest_coord_cuboid, second_target_pos, 'rows')
+            continue;
+        end
+
+        second_target_cost = calculate_flight_path_cost(new_current_pos, second_target_pos, wind_direction, apply_wind_comp);
+
+        if second_target_cost < next_uav_cost
+            next_uav_cost = second_target_cost;
+            next_lowest_cost_coord_index = i;
+            next_lowest_cost_coord = second_target_pos;
+        end
+    end
+    total_original_cost = uav_cost + next_uav_cost;
+
+    % For each cuboid neighbour of the first position, calculate the full
+    % path cost
+    for j = 1:size(closest_coord_cuboid, 1)
+        alt_first_target_pos = closest_coord_cuboid(j, :);
+
+        % Skip if alt_first_step == first closest_coord
+        if isequal(alt_first_target_pos, new_current_pos)
+            continue;
+        end
+        % Check cost from current -> alt_first -> potential_second
+        cost1 = calculate_flight_path_cost(current_pos, alt_first_target_pos, wind_direction, apply_wind_comp);
+        cost2 = calculate_flight_path_cost(alt_first_target_pos, second_target_pos, wind_direction, apply_wind_comp);
+        total_heuristic_cost = cost1 + cost2;
+
+        if total_heuristic_cost < total_original_cost
+            uav_cost = cost1;
+            next_uav_cost = cost2;
+            lowest_cost_coord = alt_first_target_pos;
+            lowest_cost_coord_index = find(ismember(coordinate_points, alt_first_target_pos, 'rows'));
+        end
+    end
+
+    % Update final values
+    closest_coord = lowest_cost_coord;
+    closest_coord_index = lowest_cost_coord_index;
+    uav_path_cost = uav_cost;
+end
+
 function uav_cost = calculate_flight_path_cost(current_pos, target_pos, wind_direction, apply_wind_comp)
     %CALCULATE_FLIGHT_PATH_COST Calculates the cost for the UAV to fly
     % between two three dimensional coordinate points.
     % Accounts for wind and applies a relative cost.
 
-    max_climb_angle = 0.5236;
+    max_climb_angle = 0.7854;
+    % max_climb_angle = 1.2236;
     max_climb_rate = 10;
     global num_div_z;
 
     base_cost_per_metre = 1;
-    descent_bonus_factor = 0.5;
-    climb_penalty_factor = 2.0;
+    descent_bonus_factor = 1.1;
+    climb_penalty_factor = 2;
 
     % Calculate the 3D distance between points
     dx = target_pos(1) - current_pos(1);
@@ -347,10 +422,12 @@ function uav_cost = calculate_flight_path_cost(current_pos, target_pos, wind_dir
 
     % Calculate slope angle from current position to target position
     slope_angle = atan2(dz, sqrt(dx.^2 + dy.^2));
-    if slope_angle > max_climb_angle
+    if abs(slope_angle) > max_climb_angle
         uav_cost = inf;
         return
     end
+
+    horizontal_distance = sqrt(dx.^2 + dy.^2);
 
     % Calculate x-y plane direction
     % Compute angle of movement to target point
@@ -371,9 +448,10 @@ function uav_cost = calculate_flight_path_cost(current_pos, target_pos, wind_dir
 
     % Calculate climb/descent cost
     if slope_angle > 0
-        climb_cost = slope_angle * climb_penalty_factor;
+        climb_cost = slope_angle * climb_penalty_factor * horizontal_distance;
     elseif slope_angle < 0
-        climb_cost = slope_angle * descent_bonus_factor;
+        climb_cost = slope_angle * descent_bonus_factor * horizontal_distance;
+        climb_cost = climb_cost - (base_cost * 0.1);
     else
         climb_cost = 0;
     end
