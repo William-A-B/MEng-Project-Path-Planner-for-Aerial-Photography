@@ -1,4 +1,4 @@
-% RRT* algorithm in 2D with collision avoidance.
+ % RRT* algorithm in 2D with collision avoidance.
 % 
 % Author: Sai Vemprala
 % 
