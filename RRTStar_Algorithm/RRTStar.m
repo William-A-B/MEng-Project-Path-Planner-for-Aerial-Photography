@@ -31,15 +31,15 @@ close all
 x_max = 1000;
 y_max = 1000;
 % Obstacle
-obstacle1 = [100, 0, 20, 200];
-obstacle2 = [200, 950, 20, 200];
-obstacle3 = [300, 0, 20, 200];
-obstacle4 = [400, 950, 20, 200];
+obstacle1 = [100, 0, 20, 900];
+obstacle2 = [300, 100, 20, 900];
+obstacle3 = [500, 0, 20, 900];
+obstacle4 = [700, 100, 20, 900];
 obstacle_list = [obstacle1; obstacle2; obstacle3; obstacle4];
 % Step size - how far tree can expand per iteration
 EPS = 40;
 % Max number of nodes the algorithm will generate
-numNodes = 500;        
+numNodes = 2000;        
 
 % Start and goal positions
 q_start.coord = [0 0];
