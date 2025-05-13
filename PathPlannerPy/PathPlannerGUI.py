@@ -726,6 +726,13 @@ class PathPlannerGUI:
         if plot_uav_altitudes:
             uav_alt_x = list(range(len(uav_altitudes)))  # X-axis: index or distance
             subplot.plot(uav_alt_x, uav_altitudes, label='UAV Altitude', marker='o', linestyle='-', color='red', markersize=4)
+            min_uav_alts = [i + self.uav_altitude_limits.min_altitude for i in altitudes]
+            max_uav_alts = [i + self.uav_altitude_limits.max_altitude for i in altitudes]
+
+            subplot.plot(alt_x, min_uav_alts, label='Min UAV Limit', linestyle='-', color='green',
+                         markersize=4)
+            subplot.plot(alt_x, max_uav_alts, label='Max UAV Limit', linestyle='-', color='green',
+                         markersize=4)
 
         subplot.set_title("Elevation Profile")
         subplot.set_xlabel("Distance")
