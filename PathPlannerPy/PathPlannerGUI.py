@@ -729,10 +729,14 @@ class PathPlannerGUI:
             min_uav_alts = [i + self.uav_altitude_limits.min_altitude for i in altitudes]
             max_uav_alts = [i + self.uav_altitude_limits.max_altitude for i in altitudes]
 
+            # Plot the min and max height above ground level UAV altitude limits
             subplot.plot(alt_x, min_uav_alts, label='Min UAV Limit', linestyle='-', color='green',
                          markersize=4)
             subplot.plot(alt_x, max_uav_alts, label='Max UAV Limit', linestyle='-', color='green',
                          markersize=4)
+
+            # Shade the region between min and max height above ground level UAV altitude limits
+            subplot.fill_between(alt_x, min_uav_alts, max_uav_alts, color='green', alpha=0.2, label='Safe UAV Altitude')
 
         subplot.set_title("Elevation Profile")
         subplot.set_xlabel("Distance")
