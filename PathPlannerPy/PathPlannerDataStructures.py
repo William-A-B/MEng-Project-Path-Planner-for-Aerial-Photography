@@ -20,3 +20,8 @@ class WindConditions:
 class UAVAltitudeLimits:
     min_altitude: float
     max_altitude: float
+
+@dataclass
+class UAVProperties:
+    airspeed: float
+    turning_radius: float

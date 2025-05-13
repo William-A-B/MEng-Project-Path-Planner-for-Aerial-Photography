@@ -45,6 +45,8 @@ class PathPlannerGUI:
 
         self.uav_altitude_limits = ppstruct.UAVAltitudeLimits(20, 100)
 
+        self.uav_properties = ppstruct.UAVProperties(20, 30)
+
         # Buttons for Line/Polygon Mode
         self.mode = "none"  # Default mode is none
 
@@ -96,6 +98,15 @@ class PathPlannerGUI:
         self.min_altitude_box = None
         self.max_altitude_box = None
         self.set_altitude_limits_button = None
+        self.uav_properties_frame = None
+        self.uav_properties_label = None
+        self.uav_airspeed_label = None
+        self.uav_airspeed_var = tk.StringVar(value=str(self.uav_properties.airspeed))
+        self.uav_airspeed_box = None
+        self.uav_turningradius_label = None
+        self.uav_turningradius_var = tk.StringVar(value=str(self.uav_properties.turning_radius))
+        self.uav_turningradius_box = None
+        self.set_uav_properties_button = None
 
         self.setup_flight_parameter_settings()
 
@@ -252,7 +263,7 @@ class PathPlannerGUI:
                                                  command=self.on_wind_dir_change)
         self.wind_direction_menu.pack(pady=(0, 10), fill=tk.X)
 
-        # Add label for altitude limit selection
+        # Setup UAV altitude limits section
         self.altitude_limits_label = ttk.Label(self.flight_parameters_frame, text="UAV Altitude Limits (Metres):")
         self.altitude_limits_label.pack(pady=(5, 5), anchor="w")
 
@@ -279,6 +290,34 @@ class PathPlannerGUI:
         self.set_altitude_limits_button = ttk.Button(self.altitude_limits_frame, text="Set altitude limits",
                                                      command=self.set_altitude_limits)
         self.set_altitude_limits_button.grid(row=2, column=0, columnspan=2, sticky="ew", padx=2)
+
+        # Setup UAV Properties inputs
+        self.uav_properties_label = ttk.Label(self.flight_parameters_frame, text="UAV Properties:")
+        self.uav_properties_label.pack(pady=(5, 5), anchor="w")
+
+        self.uav_properties_frame = ttk.Frame(self.flight_parameters_frame)
+        self.uav_properties_frame.pack(pady=(0, 10), fill=tk.X)
+
+        for i in range(3):
+            self.uav_properties_frame.rowconfigure(i, weight=1)
+        for i in range(2):
+            self.uav_properties_frame.columnconfigure(i, weight=1)
+
+        self.uav_airspeed_label = ttk.Label(self.uav_properties_frame, text="UAV Airspeed (m/s):")
+        self.uav_airspeed_label.grid(row=0, column=0, sticky="ew", padx=2)
+
+        self.uav_turningradius_label = ttk.Label(self.uav_properties_frame, text="UAV Turning Radius (m):")
+        self.uav_turningradius_label.grid(row=0, column=1, sticky="ew", padx=2)
+
+        self.uav_airspeed_box = ttk.Entry(self.uav_properties_frame, textvariable=self.uav_airspeed_var, width=15)
+        self.uav_airspeed_box.grid(row=1, column=0, sticky="ew", padx=2)
+
+        self.uav_turningradius_box = ttk.Entry(self.uav_properties_frame, textvariable=self.uav_turningradius_var, width=15)
+        self.uav_turningradius_box.grid(row=1, column=1, sticky="ew", padx=2)
+
+        self.set_uav_properties_button = ttk.Button(self.uav_properties_frame, text="Set UAV properties",
+                                                     command=self.set_uav_properties)
+        self.set_uav_properties_button.grid(row=2, column=0, columnspan=2, sticky="ew", padx=2)
 
     def on_wind_dir_change(self, direction):
         direction_map = {
@@ -322,6 +361,27 @@ class PathPlannerGUI:
 
         self.uav_altitude_limits.min_altitude = min_alt
         self.uav_altitude_limits.max_altitude = max_alt
+
+    def set_uav_properties(self):
+        airspeed = self.uav_airspeed_var.get()
+        turning_radius = self.uav_turningradius_var.get()
+        # Check for empty values
+        if not airspeed or not turning_radius:
+            messagebox.showwarning("UAV Properties",
+                                   "One or both UAV properties not set. Please enter a value.")
+            return
+
+        # Check for numeric values
+        try:
+            airspeed = float(airspeed)
+            turning_radius = float(turning_radius)
+        except ValueError:
+            messagebox.showwarning("UAV Properties",
+                                   "Properties must be valid numbers")
+            return
+
+        self.uav_properties.airspeed = airspeed
+        self.uav_properties.turning_radius = turning_radius
 
     def setup_drawing_modes(self):
         # Add label for drawing mode section
@@ -685,8 +745,8 @@ class PathPlannerGUI:
         wind_directionIn = matlab.double([self.wind_condition.wind_direction], size=(1, 1))
         altitude_limitsIn = {"min": matlab.double([self.uav_altitude_limits.min_altitude], size=(1, 1)),
                              "max": matlab.double([self.uav_altitude_limits.max_altitude], size=(1, 1))}
-        uav_turning_radiusIn = matlab.double([30.0], size=(1, 1))
-        uav_airspeedIn = matlab.double([20.0], size=(1, 1))
+        uav_turning_radiusIn = matlab.double([self.uav_properties.turning_radius], size=(1, 1))
+        uav_airspeedIn = matlab.double([self.uav_properties.airspeed], size=(1, 1))
         num_divisionsIn = {"x": matlab.double([12.0], size=(1, 1)), "y": matlab.double([12.0], size=(1, 1)),
                            "z": matlab.double([3.0], size=(1, 1))}
         plot_resultsIn = matlab.logical([True], size=(1, 1))
