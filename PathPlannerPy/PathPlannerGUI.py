@@ -11,6 +11,8 @@ from geopy.geocoders import Nominatim
 import PathPlannerDataStorage as ppds
 import PathPlannerDataStructures as ppstruct
 import math
+from geopy.distance import geodesic
+
 
 from matplotlib.backends.backend_tkagg import (FigureCanvasTkAgg, NavigationToolbar2Tk)
 # Implement the default Matplotlib key bindings.
@@ -740,6 +742,8 @@ class PathPlannerGUI:
         elevation_at_coord = self.elevation_data.get_elevation(coord[0], coord[1])
         altitudes.append(elevation_at_coord)
 
+        num_div_x, num_div_y, num_div_z = self.calculate_num_divisions(latitudes, longitudes, altitudes)
+
         polygon_vertices_waypoints = latitudes + longitudes + altitudes
         polygon_verticesIn = matlab.double(polygon_vertices_waypoints, size=(len(latitudes), 3))
         wind_directionIn = matlab.double([self.wind_condition.wind_direction], size=(1, 1))
@@ -747,8 +751,8 @@ class PathPlannerGUI:
                              "max": matlab.double([self.uav_altitude_limits.max_altitude], size=(1, 1))}
         uav_turning_radiusIn = matlab.double([self.uav_properties.turning_radius], size=(1, 1))
         uav_airspeedIn = matlab.double([self.uav_properties.airspeed], size=(1, 1))
-        num_divisionsIn = {"x": matlab.double([12.0], size=(1, 1)), "y": matlab.double([12.0], size=(1, 1)),
-                           "z": matlab.double([3.0], size=(1, 1))}
+        num_divisionsIn = {"x": matlab.double([num_div_x], size=(1, 1)), "y": matlab.double([num_div_y], size=(1, 1)),
+                           "z": matlab.double([num_div_z], size=(1, 1))}
         plot_resultsIn = matlab.logical([True], size=(1, 1))
         coordinate_pathOut, dubins_path_waypointsOut, total_path_costOut = self.my_tsp_solver_3d.setupTSP(
             start_posIn, goal_posIn, polygon_verticesIn, wind_directionIn, altitude_limitsIn, uav_turning_radiusIn,
@@ -807,3 +811,28 @@ class PathPlannerGUI:
         self.elevation_canvas.draw()
 
         self.elevation_canvas_toolbar.update()
+
+
+    def calculate_num_divisions(self, latitudes, longitudes, altitudes):
+        # Bounding box
+        min_lat, max_lat = min(latitudes), max(latitudes)
+        min_lon, max_lon = min(longitudes), max(longitudes)
+
+        # Approximate widths
+        x_plane_m = geodesic((min_lat, min_lon), (min_lat, max_lon)).meters
+        y_plane_m = geodesic((min_lat, min_lon), (max_lat, min_lon)).meters
+        z_plane_m = self.uav_altitude_limits.max_altitude - self.uav_altitude_limits.min_altitude
+
+        # Choose resolution (e.g., one division per 100m)
+        resolution_m = 100.0
+        vertical_resolution = 10.0
+        num_div_x = max(1, int(x_plane_m / resolution_m))
+        num_div_y = max(1, int(y_plane_m / resolution_m))
+        num_div_z = max(1, int(z_plane_m / vertical_resolution))
+        # Limit number of altitude divisions between 4 and 10 to reduce complexity
+        if num_div_z < 4:
+            num_div_z = 4
+        elif num_div_z > 10:
+            num_div_z = 10
+
+        return num_div_x, num_div_y, num_div_z
