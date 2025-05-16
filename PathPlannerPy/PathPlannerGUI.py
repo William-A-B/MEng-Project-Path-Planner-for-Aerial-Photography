@@ -13,7 +13,6 @@ import PathPlannerDataStructures as ppstruct
 import math
 from geopy.distance import geodesic
 
-
 from matplotlib.backends.backend_tkagg import (FigureCanvasTkAgg, NavigationToolbar2Tk)
 # Implement the default Matplotlib key bindings.
 from matplotlib.backend_bases import key_press_handler
@@ -161,6 +160,9 @@ class PathPlannerGUI:
         }
 
     def setup_gui_frames(self):
+        """
+        Set up the main layout structure of the GUI, including left and right frames.
+        """
         # Create main frame
         self.main_frame = ttk.Frame(self.root, padding=5)
         self.main_frame.pack(expand=True, fill=tk.BOTH)
@@ -187,6 +189,9 @@ class PathPlannerGUI:
         self.right_bottom_frame.rowconfigure(1, weight=2)
 
     def setup_map_widget(self):
+        """
+        Initialize the map widget in the top-right frame and bind click events and menu commands.
+        """
         # Add a map widget inside the top-right frame
         self.map_widget = tkintermapview.TkinterMapView(self.right_top_frame, width=300, height=400, corner_radius=0)
         self.map_widget.pack(expand=True, fill=tk.BOTH, padx=5, pady=5)
@@ -206,6 +211,9 @@ class PathPlannerGUI:
         self.map_widget.add_left_click_map_command(self.on_map_click)
 
     def setup_map_location_settings(self):
+        """
+        Configure the location search section in the left panel, including search input and button.
+        """
         # Add label for drawing mode section
         self.location_title_label = ttk.Label(self.left_frame, text="Location Search", font=("Arial", 12, "bold"))
         self.location_title_label.pack(pady=(5, 5), anchor="w")
@@ -219,6 +227,9 @@ class PathPlannerGUI:
         self.location_search_button.pack(pady=(10, 5), anchor="w")
 
     def setup_tile_layer_settings(self):
+        """
+        Add tile selection options for the map (e.g., OSM, Google, Satellite).
+        """
         # Add label for tile selection
         self.tile_title_label = ttk.Label(self.left_frame, text="Map Tile Options", font=("Arial", 12, "bold"))
         self.tile_title_label.pack(pady=(10, 5), anchor="w")
@@ -241,6 +252,9 @@ class PathPlannerGUI:
             btn.grid(row=0, column=i, sticky="ew", padx=2)
 
     def setup_flight_parameter_settings(self):
+        """
+        Add input options for flight parameters including wind, altitude limits, and UAV properties.
+        """
         self.flight_parameters_title_label = ttk.Label(self.left_frame, text="Flight Parameters",
                                                        font=("Arial", 12, "bold"))
         self.flight_parameters_title_label.pack(pady=(10, 5), anchor="w")
@@ -314,14 +328,20 @@ class PathPlannerGUI:
         self.uav_airspeed_box = ttk.Entry(self.uav_properties_frame, textvariable=self.uav_airspeed_var, width=15)
         self.uav_airspeed_box.grid(row=1, column=0, sticky="ew", padx=2)
 
-        self.uav_turningradius_box = ttk.Entry(self.uav_properties_frame, textvariable=self.uav_turningradius_var, width=15)
+        self.uav_turningradius_box = ttk.Entry(self.uav_properties_frame, textvariable=self.uav_turningradius_var,
+                                               width=15)
         self.uav_turningradius_box.grid(row=1, column=1, sticky="ew", padx=2)
 
         self.set_uav_properties_button = ttk.Button(self.uav_properties_frame, text="Set UAV properties",
-                                                     command=self.set_uav_properties)
+                                                    command=self.set_uav_properties)
         self.set_uav_properties_button.grid(row=2, column=0, columnspan=2, sticky="ew", padx=2)
 
     def on_wind_dir_change(self, direction):
+        """
+        Changes the wind direction angle based on the selected direction by the user.
+
+        :param direction: The direction selected by the user in the GUI
+        """
         direction_map = {
             "N": 0,
             "NNE": math.pi / 8,
@@ -344,6 +364,9 @@ class PathPlannerGUI:
         self.wind_condition.wind_direction = wind_angle_rad
 
     def set_altitude_limits(self):
+        """
+        Sets the min and max altitude limits for the UAV based on the user input
+        """
         min_alt = self.min_altitude_var.get()
         max_alt = self.max_altitude_var.get()
         # Check for empty values
@@ -365,6 +388,9 @@ class PathPlannerGUI:
         self.uav_altitude_limits.max_altitude = max_alt
 
     def set_uav_properties(self):
+        """
+        Sets the UAV properties including the airspeed and turning radius based on the user inputs
+        """
         airspeed = self.uav_airspeed_var.get()
         turning_radius = self.uav_turningradius_var.get()
         # Check for empty values
@@ -386,6 +412,9 @@ class PathPlannerGUI:
         self.uav_properties.turning_radius = turning_radius
 
     def setup_drawing_modes(self):
+        """
+        Draws the "drawing mode" options and buttons onto the GUI, setting up the event listeners
+        """
         # Add label for drawing mode section
         self.drawing_mode_title_label = ttk.Label(self.left_frame, text="Drawing Modes", font=("Arial", 12, "bold"))
         self.drawing_mode_title_label.pack(pady=(20, 5), anchor="w")
@@ -418,6 +447,9 @@ class PathPlannerGUI:
         self.save_polygon_button.pack(side=tk.TOP, fill=tk.X, padx=5, pady=2)
 
     def setup_waypoint_marker_coordinate_output(self):
+        """
+        Configures the waypoint marker coordinate list to display coordinates when polygons are plotted
+        """
         self.waypoint_marker_frame = ttk.Frame(self.left_frame)
         self.waypoint_marker_frame.columnconfigure(0, weight=1)
         self.waypoint_marker_frame.pack(pady=(0, 10), fill=tk.X)
@@ -430,9 +462,16 @@ class PathPlannerGUI:
         self.waypoint_marker_messagebox.pack(pady=(0, 10), fill=tk.X)
 
     def update_message_box_width(self, event):
+        """
+        Resizes the waypoint marker coordinate list when the GUI window is resized.
+        :param event: Event when the GUI window is resized, contains the updated frame width.
+        """
         self.waypoint_marker_messagebox.config(width=event.width)
 
     def setup_elevation_profile(self):
+        """
+        Configures the elevation profile frame and widget, so that the UAV elevations can be plotted onto the GUI.
+        """
         self.elevation_profile_frame = ttk.Frame(self.right_bottom_frame)
         self.elevation_profile_frame.rowconfigure(0, weight=1)
         self.elevation_profile_frame.columnconfigure(0, weight=1)
@@ -455,6 +494,9 @@ class PathPlannerGUI:
         self.elevation_canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
 
     def setup_algorithm_modes(self):
+        """
+        Set up the algorithm controls and user buttons
+        """
         self.calculate_shortest_path_2d_button = None
         self.choose_waypoints_button = None
         self.plot_waypoints_button = None
@@ -487,9 +529,17 @@ class PathPlannerGUI:
         self.plot_waypoints_button.pack(side=tk.TOP, fill=tk.X, padx=5, pady=2)
 
     def on_search_enter_pressed(self, event):
+        """
+        Listener for the enter key press event
+        Calls the function to search for the location input by the user.
+        :param event: Data from enter key not used here.
+        """
         self.perform_location_search()
 
     def perform_location_search(self):
+        """
+        Searches for the address/location entered into the search bar and loads this location onto the map
+        """
         location_name = self.location_search_var.get()
         if not location_name:
             messagebox.showwarning("Location Selection", "No location specified, please enter your location in the "
@@ -513,18 +563,30 @@ class PathPlannerGUI:
         self.map_widget.set_zoom(map_zoom)
 
     def set_start_position(self, coords):
+        """
+        Sets the starting position for the flight path
+        :param coords: The coordinates of the starting position
+        """
         elevation_at_coord = self.elevation_data.get_elevation(coords[0], coords[1])
         new_marker = self.map_widget.set_marker(coords[0], coords[1], text=f'Start Position',
                                                 marker_color_circle="white", marker_color_outside="green")
         self.start_pos = ppstruct.Marker(new_marker, coords[0], coords[1], elevation_at_coord)
 
     def set_goal_position(self, coords):
+        """
+        Sets the goal position for the flight path
+        :param coords: The coordinates of the goal position
+        """
         elevation_at_coord = self.elevation_data.get_elevation(coords[0], coords[1])
         new_marker = self.map_widget.set_marker(coords[0], coords[1], text=f'Goal Position',
                                                 marker_color_circle="white", marker_color_outside="red")
         self.goal_pos = ppstruct.Marker(new_marker, coords[0], coords[1], elevation_at_coord)
 
     def on_map_click(self, coords):
+        """
+        Left click map listener. Performs actions on the map depending on the mode the user has selected in the left menu
+        :param coords: The coordinates of the location the user clicked at
+        """
         if self.mode == "line":
             marker = self.map_widget.set_marker(coords[0], coords[1], text=f"Marker {len(self.markers) + 1}")
             self.markers.append(marker)
@@ -553,21 +615,30 @@ class PathPlannerGUI:
         self.waypoint_message_var.set(coordinate_messagebox_text)
 
     def set_mode_empty(self):
+        """
+        Sets the drawing mode on the map to nothing, so no accidental interactions occur
+        """
         self.mode = "none"
         self.current_drawing_mode_label.config(text=f"Current Mode = {self.mode}")
 
     def set_line_mode(self):
-        """Switch to line-drawing mode."""
+        """
+        Switch to line-drawing mode. Allowing lines to be drawn onto the map
+        """
         self.mode = "line"
         self.current_drawing_mode_label.config(text=f"Current Mode = {self.mode}")
 
     def set_polygon_mode(self):
-        """Switch to polygon-drawing mode."""
+        """
+        Switch to polygon-drawing mode. Allowing polygons representing a surveillance area to be drawn onto the map
+        """
         self.mode = "polygon"
         self.current_drawing_mode_label.config(text=f"Current Mode = {self.mode}")
 
     def clear_map(self):
-        """Clears all markers and lines/polygons from the map."""
+        """
+        Clears all markers and lines/polygons from the map.
+        """
         print("All Recorded Polygons:", self.polygons)
         self.map_widget.delete_all_marker()
         self.map_widget.delete_all_path()
@@ -582,6 +653,9 @@ class PathPlannerGUI:
         self.elevation_canvas_toolbar.update()
 
     def save_polygon(self):
+        """
+        Save the polygon coordinates into an XML file
+        """
         if not self.polygons:
             messagebox.showinfo("Save Polygon Information",
                                 "No polygon/area on map selected, please plot one first.")
@@ -590,6 +664,11 @@ class PathPlannerGUI:
         self.data_handler.save_xml()
 
     def add_marker_event(self, coords):
+        """
+        Adds a marker onto the map with the current elevation at that position.
+        Constructs an elevation height map and displays it as an image of the surrounding area
+        :param coords: The coordinates of the marker placed
+        """
         print("Add marker:", coords)
         elevation_at_coord = self.elevation_data.get_elevation(coords[0], coords[1])
         new_marker = self.map_widget.set_marker(coords[0], coords[1], text=f'Elevation = {elevation_at_coord}m')
@@ -599,6 +678,10 @@ class PathPlannerGUI:
         image.show()
 
     def change_tile_layer(self, tile_type):
+        """
+        Switches the map layer displayed between OSM, Google Maps, Satellite view and Terrain view.
+        :param tile_type: The type of map tile selected by the user
+        """
         if tile_type == "OSM":
             self.map_widget.set_tile_server("https://a.tile.openstreetmap.org/{z}/{x}/{y}.png")
         elif tile_type == "Google":
@@ -613,6 +696,9 @@ class PathPlannerGUI:
         print(f"Tile layer switched to: {tile_type}")
 
     def plot_waypoints(self):
+        """
+        Plots a set of waypoints uploaded to the program by the user.
+        """
         waypoints = self.data_handler.read_temp_coordinate_data()
 
         if not waypoints:
@@ -627,6 +713,10 @@ class PathPlannerGUI:
         self.map_widget.set_path(waypoints)
 
     def calculate_uav_flight_path_2d(self):
+        """
+        Calculates and draws the 2D shortest path based on current start and goal positions, using the drawn polygon as
+        the surveillance area. Runs the algorithm via the exported MATLAB package.
+        """
         if self.start_pos is None:
             messagebox.showwarning("Start Position", "No start position set, please set it by right clicking.")
             return
@@ -706,6 +796,10 @@ class PathPlannerGUI:
             self.plot_elevation_profile(resulting_altitudes, [], False)
 
     def calculate_uav_flight_path_3d(self):
+        """
+        Calculates and draws the 3D shortest path based on current start and goal positions, accounting for elevation,
+        using the drawn polygon as the surveillance area. Runs the algorithm via the exported MATLAB package.
+        """
         if self.start_pos is None:
             messagebox.showwarning("Start Position", "No start position set, please set it by right clicking.")
             return
@@ -783,13 +877,20 @@ class PathPlannerGUI:
         messagebox.showinfo("UAV Path Cost", f"The total UAV path cost from start to goal is {total_path_costOut}")
 
     def plot_elevation_profile(self, altitudes, uav_altitudes, plot_uav_altitudes):
+        """
+        Plots the elevation profile of a 3D flight path on the elevation graph.
+        :param altitudes: The list of ground level altitudes traversed by the UAV
+        :param uav_altitudes: The list of altitudes the UAV was flying at
+        :param plot_uav_altitudes: Bool to indicate whether to plot UAV altitudes or just ground level altitudes only
+        """
         self.elevation_profile_figure.clf()
         subplot = self.elevation_profile_figure.add_subplot(111)
         alt_x = list(range(len(altitudes)))  # X-axis: index or distance
         subplot.plot(alt_x, altitudes, label='Elevation', marker='o', linestyle='-', color='blue', markersize=4)
         if plot_uav_altitudes:
             uav_alt_x = list(range(len(uav_altitudes)))  # X-axis: index or distance
-            subplot.plot(uav_alt_x, uav_altitudes, label='UAV Altitude', marker='o', linestyle='-', color='red', markersize=4)
+            subplot.plot(uav_alt_x, uav_altitudes, label='UAV Altitude', marker='o', linestyle='-', color='red',
+                         markersize=4)
             min_uav_alts = [i + self.uav_altitude_limits.min_altitude for i in altitudes]
             max_uav_alts = [i + self.uav_altitude_limits.max_altitude for i in altitudes]
 
@@ -812,8 +913,15 @@ class PathPlannerGUI:
 
         self.elevation_canvas_toolbar.update()
 
-
     def calculate_num_divisions(self, latitudes, longitudes, altitudes):
+        """
+        Calculates the number of divsions across the surveillance area polygon which determines the number of imaging
+        locations to calculate the shortest path through.
+        :param latitudes: List of latitude coordinates of the polygon vertices
+        :param longitudes: List of longitude coordinates of the polygon vertices
+        :param altitudes: List of altitudes of the polygon vertices
+        :return num_div_x, num_div_y, num_div_z: Number of divisions across the polygon vertices in the x, y, z plane
+        """
         # Bounding box
         min_lat, max_lat = min(latitudes), max(latitudes)
         min_lon, max_lon = min(longitudes), max(longitudes)
