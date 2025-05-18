@@ -19,7 +19,7 @@ from matplotlib.backends.backend_tkagg import (FigureCanvasTkAgg, NavigationTool
 from matplotlib.backend_bases import key_press_handler
 from matplotlib.figure import Figure
 
-from PathPlannerMATLAB2D_OLD import PathPlanner2D
+from Old_Scripts.PathPlannerMATLAB2D_OLD import PathPlanner2D
 from PathPlannerTSPSolver_2D import setupTSP
 import matlab
 
