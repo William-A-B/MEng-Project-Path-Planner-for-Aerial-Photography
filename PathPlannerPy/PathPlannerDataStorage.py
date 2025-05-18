@@ -48,12 +48,13 @@ class PathPlannerDataStorage:
         coordinates = []
 
         if self.waypoints_filename is None:
-            messagebox.showwarning("Plot Waypoints Warning", "No valid waypoints file selected, please import a valid csv file.")
+            messagebox.showwarning("Plot Waypoints Warning",
+                                   "No valid waypoints file selected, please import a valid csv file.")
             return
         elif self.waypoints_filename == '':
-            messagebox.showwarning("Plot Waypoints Warning", "No valid waypoints file selected, please import a valid csv file.")
+            messagebox.showwarning("Plot Waypoints Warning",
+                                   "No valid waypoints file selected, please import a valid csv file.")
             return
-
 
         with open(self.waypoints_filename, newline='', encoding='utf-8') as csvfile:
             reader = csv.reader(csvfile)

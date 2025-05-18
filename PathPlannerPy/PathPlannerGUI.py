@@ -1,27 +1,15 @@
-import numpy as np
-import matplotlib.pyplot as plt
-import folium
 from PIL import Image, ImageTk
 import tkinter as tk
 from tkinter import ttk
 from tkinter import messagebox
 import tkintermapview
-from time import sleep
 from geopy.geocoders import Nominatim
-import PathPlannerDataStorage as ppds
 import PathPlannerDataStructures as ppstruct
 import math
 from geopy.distance import geodesic
-
 from matplotlib.backends.backend_tkagg import (FigureCanvasTkAgg, NavigationToolbar2Tk)
-# Implement the default Matplotlib key bindings.
-from matplotlib.backend_bases import key_press_handler
 from matplotlib.figure import Figure
-
-from PathPlannerMATLAB2D_OLD import PathPlanner2D
-from PathPlannerTSPSolver_2D import setupTSP
 import matlab
-
 import srtm
 
 
