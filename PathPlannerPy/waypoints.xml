@@ -2,76 +2,76 @@
 <PathPlannerDataStorage>
   <waypoints>
     <waypoint-1>
-      <latitude>54.56767235909887</latitude>
-      <longitude>-3.333812534305821</longitude>
+      <latitude>54.58692277217572</latitude>
+      <longitude>-3.0034313727812787</longitude>
     </waypoint-1>
     <waypoint-2>
-      <latitude>54.56269609854109</latitude>
-      <longitude>-3.3340271110270123</longitude>
+      <latitude>54.58918570045844</latitude>
+      <longitude>-3.0012856055693646</longitude>
     </waypoint-2>
     <waypoint-3>
-      <latitude>54.55714685182554</latitude>
-      <longitude>-3.331967174503575</longitude>
+      <latitude>54.59003115788856</latitude>
+      <longitude>-2.9918013144927045</longitude>
     </waypoint-3>
     <waypoint-4>
-      <latitude>54.55539233644893</latitude>
-      <longitude>-3.328155956607276</longitude>
+      <latitude>54.592691747644906</latitude>
+      <longitude>-2.979055457253935</longitude>
     </waypoint-4>
     <waypoint-5>
-      <latitude>54.552853755067915</latitude>
-      <longitude>-3.3268684962801274</longitude>
+      <latitude>54.594133863850736</latitude>
+      <longitude>-2.974163108010771</longitude>
     </waypoint-5>
     <waypoint-6>
-      <latitude>54.549319388479724</latitude>
-      <longitude>-3.3256668666414555</longitude>
+      <latitude>54.597838376571595</latitude>
+      <longitude>-2.9722748328642865</longitude>
     </waypoint-6>
     <waypoint-7>
-      <latitude>54.54668085886842</latitude>
-      <longitude>-3.324078998904639</longitude>
+      <latitude>54.600384340087</latitude>
+      <longitude>-2.969674575134377</longitude>
     </waypoint-7>
     <waypoint-8>
-      <latitude>54.54496323374547</latitude>
-      <longitude>-3.3186287501863774</longitude>
+      <latitude>54.60045891946749</latitude>
+      <longitude>-2.9604906914673847</longitude>
     </waypoint-8>
     <waypoint-9>
-      <latitude>54.545237062885434</latitude>
-      <longitude>-3.3140797236971196</longitude>
+      <latitude>54.59653088623682</latitude>
+      <longitude>-2.9605765221558613</longitude>
     </waypoint-9>
     <waypoint-10>
-      <latitude>54.54615811105101</latitude>
-      <longitude>-3.311676464419776</longitude>
+      <latitude>54.593348404269584</latitude>
+      <longitude>-2.96036194543467</longitude>
     </waypoint-10>
     <waypoint-11>
-      <latitude>54.548697109137564</latitude>
-      <longitude>-3.311719379764014</longitude>
+      <latitude>54.58986727985322</latitude>
+      <longitude>-2.962207305236916</longitude>
     </waypoint-11>
     <waypoint-12>
-      <latitude>54.5510617201398</latitude>
-      <longitude>-3.3107323268465336</longitude>
+      <latitude>54.58753846057562</latitude>
+      <longitude>-2.9650869589091826</longitude>
     </waypoint-12>
     <waypoint-13>
-      <latitude>54.55412306550854</latitude>
-      <longitude>-3.3102602580599125</longitude>
+      <latitude>54.58552413042692</latitude>
+      <longitude>-2.9693355779887725</longitude>
     </waypoint-13>
     <waypoint-14>
-      <latitude>54.557930759831464</latitude>
-      <longitude>-3.312191448550635</longitude>
+      <latitude>54.585001880426155</latitude>
+      <longitude>-2.977489493394046</longitude>
     </waypoint-14>
     <waypoint-15>
-      <latitude>54.56196204870664</latitude>
-      <longitude>-3.316412276521504</longitude>
+      <latitude>54.583609181027356</latitude>
+      <longitude>-2.9855575781108428</longitude>
     </waypoint-15>
     <waypoint-16>
-      <latitude>54.56571924924287</latitude>
-      <longitude>-3.3199742500932814</longitude>
+      <latitude>54.58161952787209</latitude>
+      <longitude>-2.9925527792216826</longitude>
     </waypoint-16>
     <waypoint-17>
-      <latitude>54.56865509873535</latitude>
-      <longitude>-3.3246091072710158</longitude>
+      <latitude>54.58064953673038</latitude>
+      <longitude>-2.998990080857425</longitude>
     </waypoint-17>
     <waypoint-18>
-      <latitude>54.56865509873535</latitude>
-      <longitude>-3.329372710481465</longitude>
+      <latitude>54.58231591752844</latitude>
+      <longitude>-3.0015650015117217</longitude>
     </waypoint-18>
   </waypoints>
 </PathPlannerDataStorage>
