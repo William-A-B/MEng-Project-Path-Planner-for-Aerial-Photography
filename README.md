@@ -7,7 +7,7 @@ The main application should be run from the PathPlannerPy folder, where `PathPla
 Code within the PathPlanner_MATLAB folder contains all the back-end algorithms and flight path calculation code. This has been exported as a python package, which is called from the python implementation utilising the MATLAB Engine API.
 
 ### How To Run
-- Ensure you have a valid installation of the MATLAB Engine API, or a full installation of the MATLAB runtime environment.
+- Ensure you have a valid installation of the MATLAB Engine API, or a full installation of the MATLAB runtime environment (Version R2024b was used in this project).
 - Ensure you have python 3.12 installed (Version 3.12.2 was used in this project)
 - This project was developed in PyCharm so should be runnable directly after opening the `PathPlannerPy` folder and project files in PyCharm.
 - If PyCharm is not available, ensure the venv is activated, and then run the python file (`PathPlannerApp.py`) as normal via the terminal.
